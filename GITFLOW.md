@@ -195,10 +195,3 @@ on:
 ---
 
 🪴 *Keep it lightweight. Keep it clean. Every merge should move us forward.*
-
-```
-
----
-
-Would you like me to add a **PR Template** (`.github/pull_request_template.md`) and **branch protection rules recommendation** next — so your CI/CD and review flow match this GitFlow exactly?
-```
