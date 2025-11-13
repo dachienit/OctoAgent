@@ -82,19 +82,22 @@ async function promptR3FolderPath(tracker, issueKey, specRe) {
                 default: ""
             }
         ]);
-        return{
+        return {
             tracker: '',
             issueKey: issueKey,
             r3FolderPath: 'C:\\Users\\IYH1HC\\Desktop\\AI\\OctoAgent\\package\\R3Code', 
             outputFolderPath: 'C:\\Users\\IYH1HC\\Desktop\\AI\\OctoAgent\\package\\S4Code',
             additionalRequirements: answers.additionalRequirements.trim()
         };
-    }else{ return { 
+    }else{ 
+        return { 
                 tracker,
                 issueKey,
                 r3FolderPath: path.resolve(path.join(`${tracker}`, `${issueKey}`, "R3Code")),
                 outputFolderPath: path.resolve(path.join(`${tracker}`, `${issueKey}`, "S4Code")),
-                additionalRequirements: specRe }; }
+                additionalRequirements: specRe 
+            }; 
+    }
 }
 
 /**

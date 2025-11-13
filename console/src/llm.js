@@ -189,25 +189,96 @@ async function reviewAndCorrectCode(s4GeneratedCode, s4Specification, r3SourceCo
  * @returns {Promise<Object>} - An object containing the final S4 code, review report, and history.
  */
 export async function llmService(r3SourceCode, additionalRequirement = "", history = []) { // Changed signature
- let currentHistory = [...history];
+    let currentHistory = [...history];
 
- try {
-    currentHistory.push({"role": "user", "content": `Please start the R3 to S4 conversion process for the following R3 code:\n\`\`\`abap\n${r3SourceCode}\n\`\`\`\nAdditional requirements: ${additionalRequirement}`});
+    try {
+        currentHistory.push({"role": "user", "content": `Please start the R3 to S4 conversion process for the following R3 code:\n\`\`\`abap\n${r3SourceCode}\n\`\`\`\nAdditional requirements: ${additionalRequirement}`});
 
-     // Convert Code
-    let s4Code = await convertCodeToS4(r3SourceCode, '', ''); // Pass additionalRequirement
-    currentHistory.push({"role": "assistant", "content": `**Initial S4 Code Conversion:**\n\`\`\`abap\n${s4Code}\n\`\`\``});
-    console.log("Initial S4 Code Converted successfully.");
+        // Phase 1: Generate Specification
+        const specification = await generateSpecification(r3SourceCode, additionalRequirement); // Pass additionalRequirement
+        currentHistory.push({"role": "assistant", "content": `**Generated S4 Specification:**\n${specification}`});
+        console.log("Specification Generated successfully.");
 
-    return {
-        result: {
-            finalS4Code: s4Code
-            //finalReviewReport: finalReviewResult.reviewReport,
-            //specification: specification,
-            //warning: `Max review iterations (${MAX_REVIEW_ITERATIONS}) reached. Manual review recommended.`
-        },
-        history: currentHistory
-    };
+        // Phase 2: Convert Code
+        let s4Code = await convertCodeToS4(r3SourceCode, specification, additionalRequirement); // Pass additionalRequirement
+        currentHistory.push({"role": "assistant", "content": `**Initial S4 Code Conversion:**\n\`\`\`abap\n${s4Code}\n\`\`\``});
+        console.log("Initial S4 Code Converted successfully.");
+
+        // Phase 3: Review and Correct (Iterative)
+        let reviewIteration = 0;
+        const MAX_REVIEW_ITERATIONS = 3;
+
+        while (reviewIteration < MAX_REVIEW_ITERATIONS) {
+            console.log(`Starting Code Review Iteration ${reviewIteration + 1}...`);
+            const { reviewReport, needsCorrection } = await reviewAndCorrectCode(s4Code, specification, r3SourceCode, additionalRequirement); // Pass additionalRequirement
+            currentHistory.push({"role": "assistant", "content": `**Code Review Report (Iteration ${reviewIteration + 1}):**\n${reviewReport}`});
+            console.log(`Review Iteration ${reviewIteration + 1} complete. Needs Correction: ${needsCorrection}`);
+
+            if (!needsCorrection) {
+                console.log("Code approved by reviewer. Exiting review loop.");
+                return {
+                    result: {
+                        finalS4Code: s4Code,
+                        finalReviewReport: reviewReport,
+                        specification: specification
+                    },
+                    history: currentHistory
+                };
+            } else {
+                console.log("Corrections needed. Applying corrections...");
+                const correctionSystemMessage = `
+                    You are an expert SAP ABAP developer specifically tasked with correcting S4 HANA ABAP (ABAP 7.5+) code based on a provided review report.
+                    You will receive the current S4 code, the original R3 code, the S4 specification, and a detailed review report.
+                    Your goal is to apply the corrections and improvements suggested in the review report to the S4 code.
+                    Maintain the core business logic and ensure the code now fully adheres to the S4 specification and ABAP 7.5+ best practices.
+                    Refer to the following SAP technical knowledge for context:
+                    ${docs}
+
+                    ${additionalRequirement ? `**Also ensure the corrected code adheres to the following user-specified requirements:**\n${additionalRequirement}\n` : ''}
+                    Provide only the corrected ABAP code, enclosed in a markdown code block (\`\`\`abap...\`\`\`). Do not include any explanations or conversational text outside the code block.
+                `;
+                const correctionUserMessage = `
+                    Please apply the corrections from the following review report to the S4 code.
+
+                    **Original R3 ABAP Code:**
+                    \`\`\`abap\n${r3SourceCode}\n\`\`\`
+
+                    **S4 Technical Specification:**
+                    \`\`\`\n${specification}\n\`\`\`
+
+                    **Current S4 ABAP Code (needs correction):**
+                    \`\`\`abap\n${s4Code}\n\`\`\`
+
+                    **Code Review Report (detailing necessary corrections):**
+                    \`\`\`\n${reviewReport}\n\`\`\`
+
+                    Provide the corrected S4 ABAP code.
+                `;
+
+                const { result: correctedResult, error: correctionError } = await callLLM(correctionSystemMessage, correctionUserMessage);
+                if (correctionError) {
+                    throw new Error(`Failed to apply corrections in iteration ${reviewIteration + 1}: ${correctionError.message}`);
+                }
+                const correctedCodeMatch = correctedResult.content.match(/```abap\n([\s\S]*?)\n```/);
+                s4Code = correctedCodeMatch ? correctedCodeMatch[1] : correctedResult.content;
+                currentHistory.push({"role": "assistant", "content": `**Corrected S4 Code (Iteration ${reviewIteration + 1}):**\n\`\`\`abap\n${s4Code}\n\`\`\``});
+
+                reviewIteration++;
+            }
+        }
+
+        console.warn(`Max review iterations (${MAX_REVIEW_ITERATIONS}) reached. Code may still require manual review.`);
+        const finalReviewResult = await reviewAndCorrectCode(s4Code, specification, r3SourceCode, additionalRequirement); // Pass additionalRequirement
+        currentHistory.push({"role": "assistant", "content": `**Final Review Report after ${MAX_REVIEW_ITERATIONS} iterations:**\n${finalReviewResult.reviewReport}`});
+        return {
+            result: {
+                finalS4Code: s4Code,
+                finalReviewReport: finalReviewResult.reviewReport,
+                specification: specification,
+                warning: `Max review iterations (${MAX_REVIEW_ITERATIONS}) reached. Manual review recommended.`
+            },
+            history: currentHistory
+        };
     } catch (error) {
         console.error(`Error in R3 to S4 conversion workflow: ${error.message}`);
         currentHistory.push({"role": "assistant", "content": `Error during conversion: ${error.message}`});
