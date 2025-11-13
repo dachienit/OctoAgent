@@ -175,7 +175,7 @@ async function reviewAndCorrectCode(s4GeneratedCode, s4Specification, r3SourceCo
  }
 
  const reviewReport = result.content;
- const needsCorrectionMatch = reviewReport.match(/Needs Correction:\s*(YES|NO)/i);
+ const needsCorrectionMatch = reviewReport?.match(/Needs Correction:\s*(YES|NO)/i);
  const needsCorrection = needsCorrectionMatch && needsCorrectionMatch[1].toUpperCase() === 'YES';
 
  return { reviewReport, needsCorrection };
