@@ -113,7 +113,7 @@ export async function ask() {
     const packageDir = path.dirname(__dirname);
     const r3FolderPath = path.join(packageDir, 'R3Code');
     const outputFolderPath = path.join(packageDir, 'S4Code');
-
+    const additionalRequirements = "";
     let spinner = ora(`Reading files from ${chalk.cyan(r3FolderPath)}`).start();
 
     try{
@@ -123,9 +123,10 @@ export async function ask() {
         const files = await fs.readdir(r3FolderPath);
         const abapFiles = files.filter(file => file.endsWith('.abap') || file.endsWith('.txt') || file.endsWith('.prog') || file.endsWith('.incl')); // Filter for common ABAP extensions
         if (abapFiles.length === 0) {
-            logCallback(`❌ No ABAP source code files found in https://rb-tracker.bosch.com/tracker19/browse/${issueKey} . Looking for .abap, .txt, .prog, .incl extensions.`);
+            spinner.info(chalk.red((`❌ No ABAP source code files found in folder. Looking for .abap, .txt, .prog, .incl extensions.`)));
             spinner.info(chalk.yellow(`No ABAP source code files found in ${r3FolderPath}. Looking for .abap, .txt, .prog, .incl extensions.`));
-            return; }
+            return; 
+        }
 
         console.log(chalk.blue(`Found ${abapFiles.length} ABAP file(s) for conversion.`));
         
@@ -141,11 +142,78 @@ export async function ask() {
                     console.error(llmResponse.error); // Log full error details
                     continue; // Move to the next file
                 }
-                const { finalS4Code } = llmResponse.result;
+                
+                const { finalS4Code, finalReviewReport, specification, warning } = llmResponse.result;
                 const outputFileName = `${path.basename(file, path.extname(file))}_S4${path.extname(file)}`;
                 const outputFilePath = path.join(outputFolderPath, outputFileName);
-                await fs.writeFile(outputFilePath, finalS4Code, 'utf8');
+                const specFileName = `${path.basename(file, path.extname(file))}_S4_Spec.md`;
+                const specFilePath = path.join(outputFolderPath, specFileName);
+                const reviewReportFileName = `${path.basename(file, path.extname(file))}_S4_Review.md`;
+                const reviewReportFilePath = path.join(outputFolderPath, reviewReportFileName);
+
+
+                await fs.writeFile(outputFilePath, finalS4Code || "", 'utf8');
+                await fs.writeFile(specFilePath, specification || "", 'utf8');
+                await fs.writeFile(reviewReportFilePath, finalReviewReport || "", 'utf8');
+
                 fileSpinner.succeed(chalk.green(`Converted ${file} and saved to ${chalk.cyan(outputFilePath)}`));
+                if (warning) {
+                    console.warn(chalk.yellow(`  Warning for ${file}: ${warning}`));
+                }
+                // Optional: Print parsed review report or final code snippet for immediate feedback
+                // console.log(chalk.gray("\n--- S4 Code Snippet ---"));
+                // console.log(marked.parse(`\`\`\`abap\n${finalS4Code.substring(0, 500)}...\n\`\`\``)); // Show first 500 chars
+                // console.log(chalk.gray("--- End Snippet ---\n"));
+                // --- New HTML Report Generation ---
+                const baseFileName = path.basename(file, path.extname(file));
+                const combinedReportFileName = `${baseFileName}_S4_Report.html`;
+                const combinedReportFilePath = path.join(outputFolderPath, combinedReportFileName);
+
+                const combinedMarkdown = `
+## Original R3 Source Code
+\`\`\`abap
+${stripAnsi(r3SourceCode || "")}
+\`\`\`
+
+---
+
+## S4 Technical Specification
+${stripAnsi(specification || "")}
+
+---
+
+## Generated S4 ABAP Code
+\`\`\`abap
+${stripAnsi(finalS4Code || "")}
+\`\`\`
+
+---
+
+## S4 Code Review Report
+${stripAnsi(finalReviewReport || "")}
+
+---
+
+**Generated on:** ${new Date().toLocaleString()}
+${additionalRequirements ? `**Additional Requirements Applied:**\n\`\`\`\n${stripAnsi(additionalRequirements)}\n\`\`\`` : ''}
+                `;
+                const localMarked = new Marked();
+                const htmlContent = localMarked.parse(combinedMarkdown);
+                const fullHtml = createHtmlReport(`S4 Conversion Report for ${baseFileName}`, htmlContent);
+
+                await fs.writeFile(combinedReportFilePath, fullHtml, 'utf8');
+                // --- End New HTML Report Generation ---
+
+                // Still save the converted code as a separate .abap file
+                const reportFileName = `${baseFileName}_S4${path.extname(file)}`;
+                const reportFilePath = path.join(outputFolderPath, reportFileName);
+                await fs.writeFile(reportFilePath, finalS4Code, 'utf8');
+
+
+                fileSpinner.succeed(chalk.green(`Converted ${file} and saved report to ${chalk.cyan(combinedReportFilePath)}`));
+                if (warning) {
+                    console.warn(chalk.yellow(`  Warning for ${file}: ${warning}`));
+                }
             } catch (error) {
                 fileSpinner.fail(chalk.red(`Error processing ${file}: ${error.message}`));
                 console.error(error); // Log detailed error
