@@ -16,6 +16,7 @@ try {
 async function callLLM(systemMessage, userMessage, history = []) {
     const body = {
         prompt: userMessage,
+        customMessageBehaviour: systemMessage,
         knowledgeBaseId: process.env.BRAIN_ID,
         useGptKnowledge: true
     };
