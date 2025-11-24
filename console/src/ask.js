@@ -10,6 +10,7 @@ import stripAnsi from 'strip-ansi'; // Make sure this import is correct
 import axios from 'axios';
 import { promises } from "node:dns";
 import { fileURLToPath } from 'url';
+import { readFile } from 'fs/promises';
 
 marked.use(markedTerminal());
 /**
@@ -101,22 +102,89 @@ async function promptR3FolderPath(tracker, issueKey, specRe) {
 }
 
 /**
+ * Prompts the user for the development package and additional requirement
+ * @returns {Promise<string>} The package name and requirement
+ */
+async function promptUser() {
+    const answers = await inquirer.prompt([
+        {
+            type: "input",
+            name: "packageName",
+            message: chalk.blue("Enter Custom Package name:"),
+            default: "ZPK_IYH1HC"
+        },
+        {
+            type: "input",
+            name: "transportNumber",
+            message: chalk.blue("Enter transport request number. Leave blank if none:"),
+            default: "S4HK902742"
+        },
+        {
+            type: "input",
+            name: "additionalRequirements",
+            message: chalk.blue("Enter any specific requirements for the S4 conversion. Leave blank if none:"),
+            default: "Z_"
+        }
+    ]);
+    return {
+        packageName: answers.packageName.trim(),
+        transportNumber: answers.transportNumber.trim(),
+        additionalRequirements: answers.additionalRequirements.trim()
+    };
+}
+
+function parseDirtyJson(finalS4Code) {
+    let cleaned = finalS4Code.trim();
+
+    cleaned = cleaned
+        .replace(/^```json/i, "")
+        .replace(/^```/, "")
+        .replace(/```$/, "")
+        .replace(/```/g, "")
+        .trim();
+
+    return JSON.parse(cleaned);
+}
+
+async function saveImpGuide(finalS4Code, outputFolderPath, fileName){
+    const data = parseDirtyJson(finalS4Code); 
+    const guide = data.refactor_guide;
+    let htmlBlocks = "";
+
+    guide.forEach(item => {
+        htmlBlocks += `
+        <h2>${item.step}. Step ${item.step}: ${item.title}</h2>
+        <p><b>Description:</b>  ${item.description}</p>
+        <p><b>Developer note:</b>  ${item.developer_note || ""}</p>
+        <p><b>Object type:</b>  ${item.object_type || ""}</p>
+        <p><b>Object name:</b> ${item.object_name || ""}</p>
+        <pre><code>${item.code_snippet || ""}</code></pre>
+        `;
+    });
+
+    const fullHtml = createHtmlReport('Implementation Guideline',htmlBlocks);
+    const fileNameFull = `${path.basename(fileName, path.extname(fileName))}_Imp.html`;
+    const outputPath = path.join(outputFolderPath, fileNameFull);
+    await fs.writeFile(outputPath, fullHtml, "utf-8");
+}
+
+/**
  * Main function to orchestrate the R3 to S4 conversion process.
  */
 export async function ask() {
-
     console.log(chalk.green("\n--- R3 to S4 ABAP Code Converter ---"));
     console.log(chalk.yellow("This tool will convert ABAP files from a specified R3 folder to S4 ABAP 7.5+.\n"));
+    const { packageName, additionalRequirements, transportNumber } = await promptUser();
 
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const packageDir = path.dirname(__dirname);
     const r3FolderPath = path.join(packageDir, 'R3Code');
     const outputFolderPath = path.join(packageDir, 'S4Code');
-    const additionalRequirements = "";
     let spinner = ora(`Reading files from ${chalk.cyan(r3FolderPath)}`).start();
 
     try{
+        // Initialize working directories
         await fs.mkdir(outputFolderPath, { recursive: true }); // Ensure output folder exists
         spinner.succeed(chalk.green(`Output folder created/ensured: ${chalk.cyan(outputFolderPath)}`));
 
@@ -134,9 +202,9 @@ export async function ask() {
             const fullPath = path.join(r3FolderPath, file);
             let fileSpinner = ora(`Processing ${chalk.magenta(file)}`).start();
             try{
-                const r3SourceCode = await fs.readFile(fullPath, 'utf8');
+                const r3SourceCode = await fs.readFile(fullPath, 'utf8'); 
                 fileSpinner.text = `Converting ${chalk.magenta(file)} to S4...`;
-                const llmResponse = await llmService(r3SourceCode,'', []);
+                const llmResponse = await llmService(r3SourceCode, additionalRequirements, [], packageName, transportNumber);
                 if (llmResponse.error) {
                     fileSpinner.fail(chalk.red(`Failed to convert ${file}: ${llmResponse.error.message}`));
                     console.error(llmResponse.error); // Log full error details
@@ -151,7 +219,7 @@ export async function ask() {
                 const reviewReportFileName = `${path.basename(file, path.extname(file))}_S4_Review.md`;
                 const reviewReportFilePath = path.join(outputFolderPath, reviewReportFileName);
 
-
+                //await saveImpGuide(finalS4Code, outputFolderPath, outputFileName)
                 await fs.writeFile(outputFilePath, finalS4Code || "", 'utf8');
                 await fs.writeFile(specFilePath, specification || "", 'utf8');
                 await fs.writeFile(reviewReportFilePath, finalReviewReport || "", 'utf8');
@@ -160,20 +228,28 @@ export async function ask() {
                 if (warning) {
                     console.warn(chalk.yellow(`  Warning for ${file}: ${warning}`));
                 }
+                //await saveImpGuide(finalS4Code, outputFolderPath, outputFileName)
                 // Optional: Print parsed review report or final code snippet for immediate feedback
                 // console.log(chalk.gray("\n--- S4 Code Snippet ---"));
                 // console.log(marked.parse(`\`\`\`abap\n${finalS4Code.substring(0, 500)}...\n\`\`\``)); // Show first 500 chars
                 // console.log(chalk.gray("--- End Snippet ---\n"));
-                // --- New HTML Report Generation ---
+
+                // --- New HTML Imp Guideline Generation ---
                 const baseFileName = path.basename(file, path.extname(file));
+                const combinedImpFileName = `${baseFileName}_S4_Imp.html`;
+                const combinedImpFilePath = path.join(outputFolderPath, combinedImpFileName);
+                let localMarked = new Marked();
+                let htmlContent = localMarked.parse(finalS4Code);
+                let fullHtml = createHtmlReport(`S4 Implementation Guideline for ${baseFileName}`, htmlContent);
+                await fs.writeFile(combinedImpFilePath, fullHtml, 'utf8');
+
+                // --- New HTML Report Generation ---
+                //baseFileName = path.basename(file, path.extname(file));
                 const combinedReportFileName = `${baseFileName}_S4_Report.html`;
                 const combinedReportFilePath = path.join(outputFolderPath, combinedReportFileName);
-
                 const combinedMarkdown = `
 ## Original R3 Source Code
-\`\`\`abap
-${stripAnsi(r3SourceCode || "")}
-\`\`\`
+<a href="../R3Code/${file}" target="_blank">📄 View R3 Source Code</a>
 
 ---
 
@@ -182,10 +258,8 @@ ${stripAnsi(specification || "")}
 
 ---
 
-## Generated S4 ABAP Code
-\`\`\`abap
-${stripAnsi(finalS4Code || "")}
-\`\`\`
+## Implementation Guideline
+<a href="./${combinedImpFileName}" target="_blank">📄 View Implementation Guideline</a>
 
 ---
 
@@ -197,10 +271,9 @@ ${stripAnsi(finalReviewReport || "")}
 **Generated on:** ${new Date().toLocaleString()}
 ${additionalRequirements ? `**Additional Requirements Applied:**\n\`\`\`\n${stripAnsi(additionalRequirements)}\n\`\`\`` : ''}
                 `;
-                const localMarked = new Marked();
-                const htmlContent = localMarked.parse(combinedMarkdown);
-                const fullHtml = createHtmlReport(`S4 Conversion Report for ${baseFileName}`, htmlContent);
-
+                localMarked = new Marked();
+                htmlContent = localMarked.parse(combinedMarkdown);
+                fullHtml = createHtmlReport(`S4 Conversion Report for ${baseFileName}`, htmlContent);
                 await fs.writeFile(combinedReportFilePath, fullHtml, 'utf8');
                 // --- End New HTML Report Generation ---
 

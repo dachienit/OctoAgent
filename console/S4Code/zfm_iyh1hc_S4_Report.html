@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S4 Conversion Report for zfm_iyh1hc</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2, h3, h4, h5, h6 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px; }
+        pre { background-color: #eee; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+        code { font-family: monospace; background-color: #e0e0e0; padding: 2px 4px; border-radius: 3px; }
+        blockquote { border-left: 4px solid #ccc; padding-left: 10px; color: #666; margin: 15px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>S4 Conversion Report for zfm_iyh1hc</h1>
+        <pre><code>                ## Original R3 Source Code
+                ```abap
+                FUNCTION zfm_iyh1hc.
+</code></pre>
+<p>*&quot;----------------------------------------------------------------------
+<em>&quot;</em>&quot;Local Interface:
+*&quot;  IMPORTING
+*&quot;     REFERENCE(IV_EBELN) TYPE  EBELN
+*&quot;  EXPORTING
+*&quot;     REFERENCE(EV_NETPR) TYPE  BPREI
+*&quot;----------------------------------------------------------------------</p>
+<p>  TYPES: BEGIN OF lty_po,
+           ebeln TYPE ebeln,
+           ebelp TYPE ebelp,
+           netpr TYPE bprei,
+         END OF lty_po.</p>
+<p>  DATA: lv_netpr TYPE bprei,
+        ls_po    TYPE lty_po,
+        lt_po    TYPE STANDARD TABLE OF lty_po.</p>
+<p>  SELECT a<del>ebeln b</del>ebelp b<del>netpr
+    FROM ekko AS a
+    INNER JOIN ekpo AS b ON b</del>ebeln = a<del>ebeln
+    INTO TABLE lt_po
+  WHERE a</del>ebeln = iv_ebeln
+    AND a~bstyp = gv_bstyp.
+  IF sy-subrc IS INITIAL.
+    LOOP AT lt_po INTO ls_po.
+      lv_netpr = lv_netpr + ls_po-netpr.
+    ENDLOOP.
+  ENDIF.</p>
+<p>  IF lv_netpr &gt; 10000.
+    ev_netpr = 10000.
+  ELSE.
+    ev_netpr = lv_netpr.
+  ENDIF.</p>
+<p>ENDFUNCTION.
+                    ```</p>
+<pre><code>                ---
+
+                ## S4 Technical Specification
+                Here is the comprehensive technical specification for converting the R3 ABAP function module to S4 HANA (ABAP 7.5+).
+</code></pre>
+<hr>
+<h3><strong>Technical Specification: S4 HANA Conversion for ZFM_IYH1HC</strong></h3>
+<table>
+<thead>
+<tr>
+<th align="left"><strong>Document Version</strong></th>
+<th align="left"><strong>Author</strong></th>
+<th align="left"><strong>Date</strong></th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left">1.0</td>
+<td align="left">S4 HANA Conversion Expert</td>
+<td align="left">2023-10-27</td>
+</tr>
+</tbody></table>
+<h3>1. Program Purpose</h3>
+<p>The original R3 function module <code>ZFM_IYH1HC</code> calculates the sum of the net price (<code>NETPR</code>) for all items of a given Purchase Order (PO) number (<code>EBELN</code>). The final calculated value is capped at a maximum of 10,000 before being returned.</p>
+<p>The S/4HANA equivalent will be a method within a global class that replicates this business logic using modern, performance-optimized techniques.</p>
+<h3>2. Input/Output Parameters</h3>
+<p>The procedural function module will be replaced by a new global class with a dedicated method.</p>
+<p><strong>New S/4HANA Class:</strong></p>
+<ul>
+<li><strong>Class Name:</strong> <code>/RBR2/CL_PO_CALCULATE</code></li>
+<li><strong>Description:</strong> Class for Purchase Order Calculations</li>
+</ul>
+<p><strong>New Method within the Class:</strong></p>
+<ul>
+<li><strong>Method Name:</strong> <code>GET_TOTAL_NET_PRICE</code></li>
+<li><strong>Method Type:</strong> Public, Static</li>
+<li><strong>Description:</strong> Calculates the total net price for a PO, capped at a limit.</li>
+</ul>
+<p><strong>Method Signature:</strong></p>
+<ul>
+<li><strong>IMPORTING:</strong><ul>
+<li><code>IV_PURCHASE_ORDER</code> TYPE <code>EBELN</code> (Purchase Order Number)</li>
+<li><code>IV_PO_TYPE</code> TYPE <code>BSTYP</code> OPTIONAL DEFAULT &#39;F&#39; (PO Document Category)</li>
+</ul>
+</li>
+<li><strong>RETURNING:</strong><ul>
+<li><code>VALUE(RV_TOTAL_NET_PRICE)</code> TYPE <code>BPREI</code> (Calculated Total Net Price)</li>
+</ul>
+</li>
+<li><strong>RAISING:</strong><ul>
+<li><code>/RBR2/CX_NOT_FOUND</code> (Custom exception class for handling errors like non-existent POs)</li>
+</ul>
+</li>
+</ul>
+<h3>3. Core Logic/Business Rules</h3>
+<p>The business logic will be reimplemented with a focus on performance and code clarity.</p>
+<ol>
+<li>The method receives a Purchase Order number (<code>IV_PURCHASE_ORDER</code>) and an optional PO Document Category (<code>IV_PO_TYPE</code>).</li>
+<li>A single Open SQL query will be executed to calculate the sum of the net price for all items associated with the given PO.</li>
+<li>The query will perform the aggregation directly in the HANA database using the <code>SUM()</code> function. This is a critical performance optimization.</li>
+<li>The business rule to cap the total value is maintained:<ul>
+<li>If the calculated sum is greater than 10,000, the method will return 10,000.</li>
+<li>Otherwise, the method will return the actual calculated sum.</li>
+</ul>
+</li>
+<li>If the input Purchase Order does not exist in the system, the method should raise the exception <code>/RBR2/CX_NOT_FOUND</code>.</li>
+</ol>
+<h3>4. Data Objects &amp; Interfaces</h3>
+<table>
+<thead>
+<tr>
+<th align="left">Object Type</th>
+<th align="left">R3 Object Name(s)</th>
+<th align="left">S/4HANA Equivalent / Action</th>
+<th align="left">Justification</th>
+</tr>
+</thead>
+<tbody><tr>
+<td align="left"><strong>Function Module</strong></td>
+<td align="left"><code>ZFM_IYH1HC</code></td>
+<td align="left">Replaced by method <code>GET_TOTAL_NET_PRICE</code> in class <code>/RBR2/CL_PO_CALCULATE</code>.</td>
+<td align="left">Aligns with the Object-Oriented programming model, which is best practice in S/4HANA for better encapsulation and reusability.</td>
+</tr>
+<tr>
+<td align="left"><strong>Database Tables</strong></td>
+<td align="left"><code>EKKO</code>, <code>EKPO</code></td>
+<td align="left">CDS Views <code>I_PurchaseOrder</code> and <code>I_PurchaseOrderItem</code>.</td>
+<td align="left">S/4HANA programming model mandates using CDS views as the abstraction layer for data access. They provide stable, released interfaces and can include additional logic and annotations.</td>
+</tr>
+<tr>
+<td align="left"><strong>Global Variable</strong></td>
+<td align="left"><code>gv_bstyp</code></td>
+<td align="left">Replaced with an optional importing parameter <code>IV_PO_TYPE</code> in the new method.</td>
+<td align="left">Eliminates dependency on a global state, making the method self-contained, predictable, and easier to test.</td>
+</tr>
+<tr>
+<td align="left"><strong>Custom Class</strong></td>
+<td align="left">N/A</td>
+<td align="left"><code>/RBR2/CL_PO_CALCULATE</code></td>
+<td align="left">New object to be created to house the business logic.</td>
+</tr>
+<tr>
+<td align="left"><strong>Exception Class</strong></td>
+<td align="left">N/A</td>
+<td align="left"><code>/RBR2/CX_NOT_FOUND</code></td>
+<td align="left">New object to be created for robust and modern error handling.</td>
+</tr>
+</tbody></table>
+<h3>5. Performance Considerations</h3>
+<ul>
+<li><strong>Code Pushdown:</strong> The primary performance gain will come from moving the aggregation logic from the application server (ABAP <code>LOOP</code>) to the HANA database. The R3 code fetches all PO items into an internal table (<code>SELECT ... INTO TABLE</code>), then loops to sum the price. The S/4HANA code must use <code>SELECT SUM(...)</code> to perform this calculation directly on the database, which drastically reduces data transfer and leverages HANA&#39;s in-memory calculation engine.</li>
+<li><strong>Data Model:</strong> Using the standard CDS views (<code>I_PurchaseOrder</code>, <code>I_PurchaseOrderItem</code>) is recommended as they are optimized for read access on S/4HANA.</li>
+</ul>
+<h3>6. Error Handling</h3>
+<ul>
+<li><strong>R3 Approach:</strong> The original code uses <code>sy-subrc</code> after the <code>SELECT</code>. If no PO is found, <code>sy-subrc</code> is non-zero, the loop is skipped, and the initial value of <code>0</code> is returned. This is ambiguous as a PO with a total price of 0 would yield the same result.</li>
+<li><strong>S/4HANA Approach:</strong> The new method will be more explicit. A <code>SELECT SINGLE</code> on <code>I_PurchaseOrder</code> will first validate the existence of the PO. If it doesn&#39;t exist, a specific exception (<code>/RBR2/CX_NOT_FOUND</code>) will be raised. This provides clear, actionable feedback to the calling program. If the PO header exists but has no items, the <code>SELECT SUM()</code> will correctly return <code>0</code>, which is the desired behavior.</li>
+</ul>
+<h3>7. ABAP 7.5+ Specifics</h3>
+<p>The new implementation should leverage modern ABAP 7.5+ syntax for conciseness and readability.</p>
+<ul>
+<li><strong>Object-Oriented Design:</strong> The entire logic is encapsulated within a class.</li>
+<li><strong>New Open SQL:</strong> The <code>SELECT</code> statement will use comma-separated field lists (if needed), joins with the <code>ON</code> condition, and escape characters (<code>@</code>) for host variables.</li>
+<li><strong>Inline Declarations:</strong> Variables will be declared at the point of use with <code>@DATA(...)</code>.</li>
+<li><strong>Conditional Expressions:</strong> The <code>IF/ELSE</code> block for capping the price will be replaced with a single-line <code>COND</code> expression.</li>
+</ul>
+<p><strong>Example S/4HANA Code Snippet (for the method implementation):</strong></p>
+<pre><code class="language-abap">METHOD get_total_net_price.
+
+  &quot; 1. Validate PO existence for robust error handling
+  SELECT SINGLE PurchaseOrder
+    FROM I_PurchaseOrder
+    WHERE PurchaseOrder = @iv_purchase_order
+      AND PurchaseOrderType = @iv_po_type
+    INTO @DATA(lv_ebeln).
+
+  IF sy-subrc &lt;&gt; 0.
+    RAISE EXCEPTION TYPE /rbr2/cx_not_found
+      EXPORTING
+        textid = /rbr2/cx_not_found=&gt;po_not_found
+        p1     = iv_purchase_order.
+  ENDIF.
+
+  &quot; 2. Calculate sum in the database (Code Pushdown)
+  SELECT SUM( item.NetPriceAmount )
+    FROM I_PurchaseOrderItem AS item
+    WHERE item.PurchaseOrder = @iv_purchase_order
+    INTO @DATA(lv_total_price).
+
+  &quot; 3. Apply capping logic using a conditional expression
+  rv_total_net_price = COND #( WHEN lv_total_price &gt; &#39;10000.00&#39;
+                               THEN &#39;10000.00&#39;
+                               ELSE lv_total_price ).
+
+ENDMETHOD.
+</code></pre>
+<h3>8. Assumptions/Notes</h3>
+<ul>
+<li><strong>Constant Capping Value:</strong> The value <code>10000</code> is treated as a fixed constant in this specification. If this value is expected to change, it should be externalized into a custom configuration table (e.g., <code>/RBR2/T_APP_CONFIG</code>) and read at runtime.</li>
+<li><strong>PO Type:</strong> The assumption from the R3 code is that <code>bstyp = &#39;F&#39;</code> refers to a standard Purchase Order. This is codified as the default value for the new <code>IV_PO_TYPE</code> parameter.</li>
+<li><strong>Unit Testing:</strong> The new class <code>/RBR2/CL_PO_CALCULATE</code> must be developed with a corresponding local test class. The test class should cover scenarios such as:<ul>
+<li><p>A valid PO with a total price below 10,000.</p>
+</li>
+<li><p>A valid PO with a total price above 10,000 (to test the cap).</p>
+</li>
+<li><p>A valid PO with no items (should return 0).</p>
+</li>
+<li><p>A non-existent PO number (should raise <code>/RBR2/CX_NOT_FOUND</code>).</p>
+<pre><code>        ---
+
+        ## Generated S4 ABAP Code
+        ```abap
+        
+        ```
+
+        ---
+
+        ## S4 Code Review Report
+        
+
+        ---
+
+        **Generated on:** 11/21/2025, 10:54:25 PM
+</code></pre>
+</li>
+</ul>
+</li>
+</ul>
+
+    </div>
+</body>
+</html>

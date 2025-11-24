@@ -2,6 +2,11 @@ import fs from 'node:fs';
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'node:path';
+import { readFile } from 'fs/promises';
+import { createUnitText } from "./createUnitTestClass.js";
+import { createClassMain } from "./createClass.js";
+import { MCPClient } from "./mcpClient.js";
+import { findMCPrepo } from "./findMCP.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -13,11 +18,12 @@ try {
     console.error(`Error reading documentation file: ${err.message}`);
 }
 
-async function callLLM(systemMessage, userMessage, history = []) {
+async function callLLM(systemMessage, userMessage, historyID) {
     const body = {
         prompt: userMessage,
         customMessageBehaviour: systemMessage,
         knowledgeBaseId: process.env.BRAIN_ID,
+        chatHistoryId: historyID,
         useGptKnowledge: true
     };
 
@@ -36,12 +42,8 @@ async function callLLM(systemMessage, userMessage, history = []) {
 
         if (response.status === 200) {
             const chat = await response.json();
-            let raw = chat.result;
-            raw = raw.replace(/^```json\s*/i, '').replace(/```$/i, '');
-            const parsed = JSON.parse(raw);
-            const assistantMessage = parsed.converted_code;
-            if (assistantMessage) {
-                return { result: assistantMessage, history: '' };
+            if (chat.result) {
+                return { result: chat.result, history: '' };
             } else {
                 return { error: { message: "LLM response was empty or malformed." } };
             }
@@ -62,36 +64,35 @@ async function callLLM(systemMessage, userMessage, history = []) {
  * @param {string} [additionalRequirement=""] - User-specified additional requirements.
  * @returns {Promise<string>} - The generated S4 specification.
  */
-async function generateSpecification(r3SourceCode, additionalRequirement = "") {
-    const systemMessage = `
-        You are an expert SAP ABAP consultant specializing in R3 to S4 HANA conversions.
-        Your task is to analyze the provided R3 ABAP source code and generate a comprehensive
-        technical specification for its equivalent functionality in S4 HANA (ABAP 7.5+).
-        This specification will be used to guide the code conversion and review.
-        Refer to the following SAP technical knowledge for context:
-        ${docs}
-
-        The specification should include:
-        1.  **Program Purpose:** A clear, concise description of what the R3 program does.
-        2.  **Input/Output Parameters:** Details of all selection screen fields, import/export parameters, internal tables, and their data types.
-        3.  **Core Logic/Business Rules:** Step-by-step description of the program's main functionality, including calculations, data processing, and conditional logic.
-        4.  **Data Objects & Interfaces:** Identify all tables, function modules, BAPIs, classes, or other SAP objects used in R3, and propose their S4 HANA equivalents (e.g., replaced FMs, new CDS views, simplified data models).
-        5.  **Performance Considerations:** Any areas in R3 code that might be inefficient in S4 or opportunities for optimization (e.g., parallel processing, better data access patterns).
-        6.  **Error Handling:** How errors are currently handled and how they should be handled in S4.
-        7.  **ABAP 7.5+ Specifics:** Highlight any areas where new ABAP 7.5+ syntax or features (e.g., inline declarations, new OPEN SQL, ABAP Objects, CDS views) can be leveraged for cleaner, more efficient S4 code.
-        8.  **Assumptions/Notes:** Any necessary assumptions made during the analysis or important notes for the S4 developer.
-
-        ${additionalRequirement ? `**User-specified additional requirements for this conversion:**\n${additionalRequirement}\n` : ''}
-        Provide the specification in a structured, readable markdown format.
-    `;
-    const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification:\n\`\`\`abap\n${r3SourceCode}\n\`\`\``;
-
-    console.log("Generating S4 Specification...");
-    const { result, error } = await callLLM(systemMessage, userMessage);
-    if (error) {
-        throw new Error(`Failed to generate specification: ${error.message}`);
+async function generateSpecification(r3SourceCode, additionalRequirement = "", historyID) {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const filePath = path.join(
+        __dirname,
+        '..',
+        'docs',
+        'Decomposed AI Architecture.md'
+        //'S4_Refactor_Prompt.md'
+        //'testcase-prompt.md'
+    );
+    
+    try {
+        let systemMessage = fs.readFileSync(filePath, 'utf8');
+        systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
+        systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
+        //const len = systemMessage.length;
+        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.\n
+                             Here is ABAP R3 source code: \n\`\`\`abap\n${r3SourceCode}\n\`\`\`
+                            `;
+        console.log("Generating S4 Specification...");
+        const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+        if (error) {
+            throw new Error(`Failed to generate specification: ${error.message}`);
+        }
+    return result;
+    } catch (err) {
+        console.error('Error:', err);
     }
-    return result.content;
 }
 
 /**
@@ -101,20 +102,43 @@ async function generateSpecification(r3SourceCode, additionalRequirement = "") {
  * @param {string} [additionalRequirement=""] - User-specified additional requirements.
  * @returns {Promise<string>} - The generated S4 ABAP code.
  */
-async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirement = "") {
+async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirement = "", historyID) {
+/*     let unitTest = "";
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    try {
+        unitTest = fs.readFileSync(path.resolve(`${__dirname}/../docs/testcase-prompt.md`), 'utf8');
+    } catch (err) {
+        console.error(`Error reading documentation file: ${err.message}`);
+    } */
+    const filePath = path.join(
+        __dirname,
+        '..',
+        'docs',
+        'S4_Refactor_Prompt.md'
+    );
+    let systemMessage = fs.readFileSync(filePath, 'utf8');
+/*     let len = systemMessage.length;
+    systemMessage = systemMessage.replace(/\$\{unitTest\}/g, unitTest);
+    len = systemMessage.length; */
     const userMessage = `
-        ${r3SourceCode}
+        OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.
     `;
 
     console.log("Converting R3 Code to S4...");
-    const { result, error } = await callLLM('', userMessage);
-    if (error) {
-        throw new Error(`Failed to convert code: ${error.message}`);
-    }
-    if (result){
-        return result;
-    } else {
-        return '';
+
+    try{
+        const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+        if (error) {
+            throw new Error(`Failed to convert code: ${error.message}`);
+        }
+        if (result){
+            return result;
+        } else {
+            return '';
+        }
+    } catch (err) {
+        console.error('Error:', err);
     }
 }
 
@@ -126,60 +150,147 @@ async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirem
  * @param {string} [additionalRequirement=""] - User-specified additional requirements.
  * @returns {Promise<{reviewReport: string, needsCorrection: boolean}>} - A review report and a flag indicating if corrections are needed.
  */
-async function reviewAndCorrectCode(s4GeneratedCode, s4Specification, r3SourceCode, additionalRequirement = "") {
- const systemMessage = `
-     You are a meticulous SAP ABAP Quality Assurance expert specializing in S4 HANA code reviews and R3 to S4 conversion validation.
-     Your task is to rigorously review the provided S4 ABAP code against the original R3 source code and the S4 technical specification.
-     Identify any logical errors, syntax issues (for ABAP 7.5+), performance bottlenecks, deviations from the specification,
-     or missed opportunities for leveraging modern ABAP features.
-     Refer to the following SAP technical knowledge for context:
-     ${docs}
+async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID) {
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = path.dirname(__filename);
+    const filePath = path.join(
+        __dirname,
+        '..',
+        'docs',
+        'QA_Final_Guide_Generation.md'
+    );
+    const systemMessage = fs.readFileSync(filePath, 'utf8');
+    const userMessage = `
+        I've implemented the S4 code after refactor to SAP system in Eclipse but have some errors when active. Please check and fix.
+        
+        **Here is ABAP Code:**
+        \`\`\`abap\n${r3SourceCode}\n\`\`\`
 
-     ${additionalRequirement ? `**Consider the following user-specified requirements during your review:**\n${additionalRequirement}\n` : ''}
-     Provide a detailed review report. For each identified issue, clearly state:
-     *   **Issue Type:** (e.g., "Logical Error", "Syntax Error", "Performance Bottleneck", "Specification Mismatch", "Modern ABAP Opportunity")
-     *   **Description:** Explain the problem concisely.
-     *   **Line(s):** Indicate approximate line numbers or relevant code snippets.
-     *   **Proposed Correction/Improvement:** Provide a precise suggestion for how to fix or improve the code. If it's a code change, provide the exact corrected code snippet.
+        **Here is json for errors returned from ATC check**
+        \n\`\`\`\n${issueLog}\n\`\`\`
+    `;
 
-     At the end of your report, include a "Summary" section indicating whether the code needs further correction ("YES" or "NO") and a brief justification.
-     Example format:
-     ---
-     ## Code Review Report
-     ...
-     ---
-     ## Summary
-     Needs Correction: YES
-     Justification: ...
-     ---
- `;
+    console.log("Reviewing S4 Code...");
+    const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+    if (error) {
+        throw new Error(`Failed to review code: ${error.message}`);
+    }
+    let raw = result.content || result.result;
+    raw = raw?.replace(/^```json\s*/i, '').replace(/```$/i, '');
+    const codeReview = JSON.parse(raw);
+    return codeReview;
+}
 
- const userMessage = `
-     Review the following S4 ABAP code against the original R3 code and the S4 specification.
+async function createHistory(){
+    const url = process.env.DIA_HISTORY + "/" + process.env.BRAIN_ID 
+    try {
+        const response = await fetch(url,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token.accessToken}`,
+                },
+            }
+        );
 
-     **Original R3 ABAP Code:**
-     \`\`\`abap\n${r3SourceCode}\n\`\`\`
+        if (response.status === 200) {
+            const historyId = await response.text();
+            if (historyId) {
+                return historyId;
+            } else {
+                return { error: { message: "LLM response was empty or malformed." } };
+            }
+        } else {
+            const errorText = await response.text();
+            console.error(`LLM API Error ${response.status}: ${errorText}`);
+            return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
+        }
+    } catch (error) {
+        console.error(`Network or parsing error during LLM call: ${error.message}`);
+        return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
+    }
+}
 
-     **Generated S4 ABAP Code (for review):**
-     \`\`\`abap\n${s4GeneratedCode}\n\`\`\`
+async function deleteHistory( historyID ){
+    const url = process.env.DIA_HISTORY + "/" + historyID 
+    try {
+        const response = await fetch(url,
+            {
+                method: "DELETE",
+                headers: {
+                    "Authorization": `Bearer ${token.accessToken}`,
+                },
+            }
+        );
 
-     **S4 Technical Specification:**
-     \`\`\`\n${s4Specification}\n\`\`\`
+        if (response.status === 200) {
+        } else {
+            const errorText = await response.text();
+            console.error(`LLM API Error ${response.status}: ${errorText}`);
+            return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
+        }
+    } catch (error) {
+        console.error(`Network or parsing error during LLM call: ${error.message}`);
+        return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
+    }
+}
 
-     Provide a detailed code review report as per your instructions.
- `;
+function parseDirtyJson(finalS4Code) {
+    let cleaned = finalS4Code.trim();
 
- console.log("Reviewing S4 Code...");
- const { result, error } = await callLLM(systemMessage, userMessage);
- if (error) {
-     throw new Error(`Failed to review code: ${error.message}`);
- }
+    cleaned = cleaned
+        .replace(/^```json/i, "")
+        .replace(/^```/, "")
+        .replace(/```$/, "")
+        .replace(/```/g, "")
+        .trim();
 
- const reviewReport = result.content;
- const needsCorrectionMatch = reviewReport?.match(/Needs Correction:\s*(YES|NO)/i);
- const needsCorrection = needsCorrectionMatch && needsCorrectionMatch[1].toUpperCase() === 'YES';
+    return JSON.parse(cleaned);
+}
 
- return { reviewReport, needsCorrection };
+function extractBlocks(markdown){
+    const codeRegex = /```abap([\s\S]*?)```/gi;
+    const headingRegex = /(#+\s*Class:[^\n]+|Class:[^\n]+)/gi;
+
+    let match;
+    const results = [];
+
+    while ((match = codeRegex.exec(markdown)) !== null) {
+        const code = match[1].trim();
+
+        // phần markdown trước block
+        const before = markdown.substring(0, match.index);
+
+        // tìm heading trước nó
+        const headings = [...before.matchAll(headingRegex)];
+        let heading = "UNKNOWN";
+
+        if (headings.length > 0) {
+            heading = headings.pop()[0].trim();
+        }
+
+        // classify
+        let type = "class";
+        if (/test/i.test(heading)) {
+            type = "unit";
+        }
+
+        // extract class name if có
+        let className = null;
+        const classMatch = heading.match(/Class:\s*([A-Za-z0-9_]+)/i);
+        if (classMatch) {
+            className = classMatch[1];
+        }
+
+        results.push({
+            heading,
+            type,
+            className,
+            code
+        });
+    }
+
+    return results;
 }
 
 /**
@@ -189,94 +300,125 @@ async function reviewAndCorrectCode(s4GeneratedCode, s4Specification, r3SourceCo
  * @param {Array<Object>} history - An array to maintain the overall conversation history (optional).
  * @returns {Promise<Object>} - An object containing the final S4 code, review report, and history.
  */
-export async function llmService(r3SourceCode, additionalRequirement = "", history = []) { // Changed signature
+export async function llmService(r3SourceCode, additionalRequirement = "Z_", history = [], packageName, transportNumber) { // Changed signature
     let currentHistory = [...history];
 
     try {
+
+        //Initialize MCP
+        const repoDir = await findMCPrepo();
+        const mcpClient = new MCPClient({ repoDir: repoDir });
+        mcpClient.start();
+        await mcpClient.initialize();
+        const login = await mcpClient.callTool("login", {});
+        console.log(login);
+
         currentHistory.push({"role": "user", "content": `Please start the R3 to S4 conversion process for the following R3 code:\n\`\`\`abap\n${r3SourceCode}\n\`\`\`\nAdditional requirements: ${additionalRequirement}`});
 
+        docs = docs.replace(/\$\{nameSpace\}/g, additionalRequirement);
+
+        // Create chat history
+        const historyID = await createHistory();
+
         // Phase 1: Generate Specification
-        const specification = await generateSpecification(r3SourceCode, additionalRequirement); // Pass additionalRequirement
+        const specification = await generateSpecification(r3SourceCode, additionalRequirement, historyID); // Pass additionalRequirement
         currentHistory.push({"role": "assistant", "content": `**Generated S4 Specification:**\n${specification}`});
         console.log("Specification Generated successfully.");
 
         // Phase 2: Convert Code
-        let s4Code = await convertCodeToS4(r3SourceCode, specification, additionalRequirement); // Pass additionalRequirement
+        let s4Code = await convertCodeToS4(r3SourceCode, specification, additionalRequirement, historyID); // Pass additionalRequirement
         currentHistory.push({"role": "assistant", "content": `**Initial S4 Code Conversion:**\n\`\`\`abap\n${s4Code}\n\`\`\``});
         console.log("Initial S4 Code Converted successfully.");
+        let abapCode = extractBlocks(s4Code);
 
-        // Phase 3: Review and Correct (Iterative)
-        let reviewIteration = 0;
-        const MAX_REVIEW_ITERATIONS = 3;
-
-        while (reviewIteration < MAX_REVIEW_ITERATIONS) {
-            console.log(`Starting Code Review Iteration ${reviewIteration + 1}...`);
-            const { reviewReport, needsCorrection } = await reviewAndCorrectCode(s4Code, specification, r3SourceCode, additionalRequirement); // Pass additionalRequirement
-            currentHistory.push({"role": "assistant", "content": `**Code Review Report (Iteration ${reviewIteration + 1}):**\n${reviewReport}`});
-            console.log(`Review Iteration ${reviewIteration + 1} complete. Needs Correction: ${needsCorrection}`);
-
-            if (!needsCorrection) {
-                console.log("Code approved by reviewer. Exiting review loop.");
+        // Push code to S4 system
+        let issueLog = "";
+        let phase2Json = parseDirtyJson(s4Code); 
+        let targetBlock = phase2Json.refactor_guide.find(
+            item => item.action_type === "CREATE_OBJECT_WITH_CODE"
+        );
+        let objectType = "CLASS";//targetBlock.object_type;
+        let objectName = "Z_CL_PO_CALCULATE";
+        let codeSnippet = r3SourceCode;
+        if (objectType === "CLASS" && objectName && codeSnippet) {
+            // For create new class to SAP system
+            let result = await createClassMain(
+                mcpClient,
+                objectName,
+                packageName,
+                objectName,
+                codeSnippet,
+                transportNumber
+            );
+            issueLog = JSON.parse(result);
+            // Search any error
+            issueLog.result = issueLog.result.filter(item => item.severity === "E");
+            if(issueLog.result.length === 0){ // No any error after active code
                 return {
                     result: {
                         finalS4Code: s4Code,
-                        finalReviewReport: reviewReport,
-                        specification: specification
+                        finalReviewReport: issueLog,
+                        specification: specification,
+                        warning: ''
                     },
                     history: currentHistory
                 };
-            } else {
-                console.log("Corrections needed. Applying corrections...");
-                const correctionSystemMessage = `
-                    You are an expert SAP ABAP developer specifically tasked with correcting S4 HANA ABAP (ABAP 7.5+) code based on a provided review report.
-                    You will receive the current S4 code, the original R3 code, the S4 specification, and a detailed review report.
-                    Your goal is to apply the corrections and improvements suggested in the review report to the S4 code.
-                    Maintain the core business logic and ensure the code now fully adheres to the S4 specification and ABAP 7.5+ best practices.
-                    Refer to the following SAP technical knowledge for context:
-                    ${docs}
+            }else{
+                // Phase 3: Review and Correct (Iterative)
+                let reviewIteration = 0;
+                const MAX_REVIEW_ITERATIONS = 3;
+                while (reviewIteration < MAX_REVIEW_ITERATIONS) {
+                    try {
+                        console.log(`Starting Code Review Iteration ${reviewIteration + 1}...`);
+                        let s4CodeReview = await reviewAndCorrectCode(result, r3SourceCode, historyID);
+                        phase2Json = parseDirtyJson(s4CodeReview); 
+                        targetBlock = phase2Json.refactor_guide.find(
+                            item => refactorGuide.action_type === "CREATE_OBJECT_WITH_CODE"
+                        );
+                        codeSnippet = targetBlock.code_snippet;
 
-                    ${additionalRequirement ? `**Also ensure the corrected code adheres to the following user-specified requirements:**\n${additionalRequirement}\n` : ''}
-                    Provide only the corrected ABAP code, enclosed in a markdown code block (\`\`\`abap...\`\`\`). Do not include any explanations or conversational text outside the code block.
-                `;
-                const correctionUserMessage = `
-                    Please apply the corrections from the following review report to the S4 code.
-
-                    **Original R3 ABAP Code:**
-                    \`\`\`abap\n${r3SourceCode}\n\`\`\`
-
-                    **S4 Technical Specification:**
-                    \`\`\`\n${specification}\n\`\`\`
-
-                    **Current S4 ABAP Code (needs correction):**
-                    \`\`\`abap\n${s4Code}\n\`\`\`
-
-                    **Code Review Report (detailing necessary corrections):**
-                    \`\`\`\n${reviewReport}\n\`\`\`
-
-                    Provide the corrected S4 ABAP code.
-                `;
-
-                const { result: correctedResult, error: correctionError } = await callLLM(correctionSystemMessage, correctionUserMessage);
-                if (correctionError) {
-                    throw new Error(`Failed to apply corrections in iteration ${reviewIteration + 1}: ${correctionError.message}`);
+                        if (codeSnippet) {
+                            // For create new class to SAP system
+                            result = await createClassMain(
+                                mcpClient,
+                                objectName,
+                                packageName,
+                                objectName,
+                                codeSnippet,
+                                transportNumber
+                            );
+                            issueLog = JSON.parse(result);
+                            // Search any error again
+                            issueLog.result = issueLog.result.filter(item => item.severity === "E");
+                            if(issueLog.result.length === 0){
+                                console.log("Code approved by reviewer. Exiting review loop.");
+                                return {
+                                    result: {
+                                        finalS4Code: s4CodeReview,
+                                        finalReviewReport: issueLog,
+                                        specification: specification,
+                                        warning: ''
+                                    },
+                                    history: currentHistory
+                                };
+                            }else{
+                                reviewIteration++;
+                            }
+                        }
+                    }catch (error){
+                        console.error(`Code review error: ${error.message}`);
+                        break;
+                    }
                 }
-                const correctedCodeMatch = correctedResult.content.match(/```abap\n([\s\S]*?)\n```/);
-                s4Code = correctedCodeMatch ? correctedCodeMatch[1] : correctedResult.content;
-                currentHistory.push({"role": "assistant", "content": `**Corrected S4 Code (Iteration ${reviewIteration + 1}):**\n\`\`\`abap\n${s4Code}\n\`\`\``});
-
-                reviewIteration++;
             }
         }
 
-        console.warn(`Max review iterations (${MAX_REVIEW_ITERATIONS}) reached. Code may still require manual review.`);
-        const finalReviewResult = await reviewAndCorrectCode(s4Code, specification, r3SourceCode, additionalRequirement); // Pass additionalRequirement
-        currentHistory.push({"role": "assistant", "content": `**Final Review Report after ${MAX_REVIEW_ITERATIONS} iterations:**\n${finalReviewResult.reviewReport}`});
         return {
             result: {
                 finalS4Code: s4Code,
-                finalReviewReport: finalReviewResult.reviewReport,
+                finalReviewReport: '',
                 specification: specification,
-                warning: `Max review iterations (${MAX_REVIEW_ITERATIONS}) reached. Manual review recommended.`
+                warning: ''//`Max review iterations (${MAX_REVIEW_ITERATIONS}) reached. Manual review recommended.`
             },
             history: currentHistory
         };

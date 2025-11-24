@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S4 Implementation Guideline for zfm_iyh1hc2</title>
+    <style>
+        body { font-family: sans-serif; line-height: 1.6; margin: 20px; background-color: #f4f4f4; color: #333; }
+        .container { max-width: 1000px; margin: auto; background: #fff; padding: 20px; border-radius: 8px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+        h1, h2, h3, h4, h5, h6 { color: #0056b3; border-bottom: 1px solid #eee; padding-bottom: 5px; margin-top: 20px; }
+        pre { background-color: #eee; padding: 10px; border-radius: 5px; overflow-x: auto; white-space: pre-wrap; word-wrap: break-word; }
+        code { font-family: monospace; background-color: #e0e0e0; padding: 2px 4px; border-radius: 3px; }
+        blockquote { border-left: 4px solid #ccc; padding-left: 10px; color: #666; margin: 15px 0; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        th, td { border: 1px solid #ddd; padding: 8px; text-align: left; }
+        th { background-color: #f2f2f2; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>S4 Implementation Guideline for zfm_iyh1hc2</h1>
+        <p>Here is the S/4HANA refactoring guide based on the provided technical specification and knowledge resources.</p>
+<h2>Implementation Guideline:</h2>
+<h3><strong>Step 1: Dependency Check</strong></h3>
+<p>The original function module <code>zfm_iyh1hc2</code> has a dependency on a global variable <code>gv_bstyp</code>. This dependency must be removed in the new S/4HANA implementation. The value previously held by <code>gv_bstyp</code> will now be passed explicitly as an importing parameter <code>iv_po_document_type</code> to the new method.</p>
+<p><strong>Developer Action:</strong> Before replacing the calls to the old function module, you must analyze all calling programs to identify how <code>gv_bstyp</code> is populated. This value must then be passed to the new method <code>zcl_po_calculate=&gt;get_capped_total_net_price</code> to ensure consistent business logic.</p>
+<h3><strong>Step 2: Implement S/4 Objects</strong></h3>
+<h2>Class: ZCL_PO_CALCULATE</h2>
+<p>This global class encapsulates the business logic for calculating the total net price of a purchase order. It replaces the procedural function module <code>zfm_iyh1hc2</code> with a modern, object-oriented, and S/4HANA-optimized implementation. The logic is contained within a single public static method.</p>
+<pre><code class="language-abap">CLASS zcl_po_calculate DEFINITION
+  PUBLIC
+  FINAL
+  CREATE PUBLIC .
+
+  PUBLIC SECTION.
+    &quot;! &lt;p class=&quot;shorttext synchronized&quot;&gt;Calculates capped total net price for a PO&lt;/p&gt;
+    &quot;! @parameter iv_purchase_order | &lt;p class=&quot;shorttext synchronized&quot;&gt;Purchase Order Number&lt;/p&gt;
+    &quot;! @parameter iv_po_document_type | &lt;p class=&quot;shorttext synchronized&quot;&gt;Purchase Order Document Type&lt;/p&gt;
+    &quot;! @raising cx_sy_open_sql_db | &lt;p class=&quot;shorttext synchronized&quot;&gt;Database error&lt;/p&gt;
+    &quot;! @returning rv_total_net_price | &lt;p class=&quot;shorttext synchronized&quot;&gt;Capped Total Net Price&lt;/p&gt;
+    CLASS-METHODS get_capped_total_net_price
+      IMPORTING
+        iv_purchase_order     TYPE ebeln
+        iv_po_document_type   TYPE bstyp
+      RETURNING
+        VALUE(rv_total_net_price) TYPE bprei
+      RAISING
+        cx_sy_open_sql_db.
+
+ENDCLASS.
+
+
+
+CLASS zcl_po_calculate IMPLEMENTATION.
+
+  METHOD get_capped_total_net_price.
+    &quot; Calculate total net price using an aggregate function for HANA optimization.
+    SELECT SINGLE SUM( NetPriceAmount )
+      FROM I_PurchaseOrderItem
+     WHERE PurchaseOrder     = @iv_purchase_order
+       AND PurchaseOrderType = @iv_po_document_type
+      INTO @DATA(lv_total_net_price).
+
+    &quot; If the query fails, a CX_SY_OPEN_SQL_DB exception is raised and propagated.
+    &quot; If no items are found, SUM returns 0, correctly handling the business case.
+
+    &quot; Apply capping logic using the MIN intrinsic function for concise code.
+    rv_total_net_price = min( val1 = lv_total_net_price, val2 = &#39;10000&#39; ).
+
+  ENDMETHOD.
+
+ENDCLASS.
+</code></pre>
+<h2>Unit test: ZCL_PO_CALCULATE</h2>
+<p>This local test class provides unit tests for <code>zcl_po_calculate</code>. It uses the ABAP Test Double Framework to mock the CDS View <code>I_PurchaseOrderItem</code>, ensuring that the tests are isolated from the database and run predictably. The tests cover the main business scenarios: total price below the cap, total price above the cap, and no items found.</p>
+<pre><code class="language-abap">CLASS ltcl_test DEFINITION FINAL FOR TESTING
+  RISK LEVEL HARMLESS
+  DURATION SHORT.
+
+  PRIVATE SECTION.
+    TYPES:
+      tt_po_items TYPE STANDARD TABLE OF I_PurchaseOrderItem WITH EMPTY KEY.
+
+    CLASS-DATA:
+      go_cds_test_environment TYPE REF TO if_cds_test_environment.
+
+    METHODS:
+      setup    FOR TESTING,
+      teardown FOR TESTING,
+      test_sum_below_cap   FOR TESTING,
+      test_sum_above_cap   FOR TESTING,
+      test_no_items_found  FOR TESTING.
+
+ENDCLASS.
+
+
+CLASS ltcl_test IMPLEMENTATION.
+
+  METHOD setup.
+    &quot; Create a test double environment for the I_PurchaseOrderItem CDS view.
+    go_cds_test_environment = cl_cds_test_environment=&gt;create_for_multiple_cds(
+      i_for_cds_views = VALUE #( ( &#39;I_PurchaseOrderItem&#39; ) )
+    ).
+  ENDMETHOD.
+
+  METHOD teardown.
+    &quot; Destroy the test double environment after tests are executed.
+    go_cds_test_environment-&gt;destroy( ).
+  ENDMETHOD.
+
+  METHOD test_sum_below_cap.
+    &quot; Arrange: Create test data where the sum of net prices is below the 10000 cap.
+    DATA(lt_po_items) = VALUE tt_po_items(
+      ( PurchaseOrder = &#39;4500000001&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;4000.00&#39; )
+      ( PurchaseOrder = &#39;4500000001&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;3500.50&#39; )
+    ).
+    go_cds_test_environment-&gt;insert_test_data( i_data = lt_po_items ).
+
+    &quot; Act: Call the method under test.
+    DATA(lv_actual_price) = zcl_po_calculate=&gt;get_capped_total_net_price(
+      iv_purchase_order   = &#39;4500000001&#39;
+      iv_po_document_type = &#39;NB&#39;
+    ).
+
+    &quot; Assert: Verify that the result is the correct sum.
+    cl_abap_unit_assert=&gt;assert_equals(
+      exp = &#39;7500.50&#39;
+      act = lv_actual_price
+      msg = &#39;Failed: Sum should be below the cap.&#39;
+    ).
+  ENDMETHOD.
+
+  METHOD test_sum_above_cap.
+    &quot; Arrange: Create test data where the sum of net prices is above the 10000 cap.
+    DATA(lt_po_items) = VALUE tt_po_items(
+      ( PurchaseOrder = &#39;4500000002&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;8000.00&#39; )
+      ( PurchaseOrder = &#39;4500000002&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;9000.00&#39; )
+    ).
+    go_cds_test_environment-&gt;insert_test_data( i_data = lt_po_items ).
+
+    &quot; Act: Call the method under test.
+    DATA(lv_actual_price) = zcl_po_calculate=&gt;get_capped_total_net_price(
+      iv_purchase_order   = &#39;4500000002&#39;
+      iv_po_document_type = &#39;NB&#39;
+    ).
+
+    &quot; Assert: Verify that the result is capped at 10000.
+    cl_abap_unit_assert=&gt;assert_equals(
+      exp = &#39;10000.00&#39;
+      act = lv_actual_price
+      msg = &#39;Failed: Sum should be capped at 10000.&#39;
+    ).
+  ENDMETHOD.
+
+  METHOD test_no_items_found.
+    &quot; Arrange: No test data is inserted for the specified purchase order.
+
+    &quot; Act: Call the method with a PO that has no corresponding items in the test double.
+    DATA(lv_actual_price) = zcl_po_calculate=&gt;get_capped_total_net_price(
+      iv_purchase_order   = &#39;4500000003&#39;
+      iv_po_document_type = &#39;NB&#39;
+    ).
+
+    &quot; Assert: Verify that the result is 0 when no items are found.
+    cl_abap_unit_assert=&gt;assert_equals(
+      exp = &#39;0.00&#39;
+      act = lv_actual_price
+      msg = &#39;Failed: Sum should be 0 for non-existent items.&#39;
+    ).
+  ENDMETHOD.
+
+ENDCLASS.
+</code></pre>
+
+    </div>
+</body>
+</html>
