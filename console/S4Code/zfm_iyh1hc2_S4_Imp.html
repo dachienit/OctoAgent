@@ -19,157 +19,40 @@
 <body>
     <div class="container">
         <h1>S4 Implementation Guideline for zfm_iyh1hc2</h1>
-        <p>Here is the S/4HANA refactoring guide based on the provided technical specification and knowledge resources.</p>
-<h2>Implementation Guideline:</h2>
-<h3><strong>Step 1: Dependency Check</strong></h3>
-<p>The original function module <code>zfm_iyh1hc2</code> has a dependency on a global variable <code>gv_bstyp</code>. This dependency must be removed in the new S/4HANA implementation. The value previously held by <code>gv_bstyp</code> will now be passed explicitly as an importing parameter <code>iv_po_document_type</code> to the new method.</p>
-<p><strong>Developer Action:</strong> Before replacing the calls to the old function module, you must analyze all calling programs to identify how <code>gv_bstyp</code> is populated. This value must then be passed to the new method <code>zcl_po_calculate=&gt;get_capped_total_net_price</code> to ensure consistent business logic.</p>
-<h3><strong>Step 2: Implement S/4 Objects</strong></h3>
-<h2>Class: ZCL_PO_CALCULATE</h2>
-<p>This global class encapsulates the business logic for calculating the total net price of a purchase order. It replaces the procedural function module <code>zfm_iyh1hc2</code> with a modern, object-oriented, and S/4HANA-optimized implementation. The logic is contained within a single public static method.</p>
-<pre><code class="language-abap">CLASS zcl_po_calculate DEFINITION
-  PUBLIC
-  FINAL
-  CREATE PUBLIC .
-
-  PUBLIC SECTION.
-    &quot;! &lt;p class=&quot;shorttext synchronized&quot;&gt;Calculates capped total net price for a PO&lt;/p&gt;
-    &quot;! @parameter iv_purchase_order | &lt;p class=&quot;shorttext synchronized&quot;&gt;Purchase Order Number&lt;/p&gt;
-    &quot;! @parameter iv_po_document_type | &lt;p class=&quot;shorttext synchronized&quot;&gt;Purchase Order Document Type&lt;/p&gt;
-    &quot;! @raising cx_sy_open_sql_db | &lt;p class=&quot;shorttext synchronized&quot;&gt;Database error&lt;/p&gt;
-    &quot;! @returning rv_total_net_price | &lt;p class=&quot;shorttext synchronized&quot;&gt;Capped Total Net Price&lt;/p&gt;
-    CLASS-METHODS get_capped_total_net_price
-      IMPORTING
-        iv_purchase_order     TYPE ebeln
-        iv_po_document_type   TYPE bstyp
-      RETURNING
-        VALUE(rv_total_net_price) TYPE bprei
-      RAISING
-        cx_sy_open_sql_db.
-
-ENDCLASS.
-
-
-
-CLASS zcl_po_calculate IMPLEMENTATION.
-
-  METHOD get_capped_total_net_price.
-    &quot; Calculate total net price using an aggregate function for HANA optimization.
-    SELECT SINGLE SUM( NetPriceAmount )
-      FROM I_PurchaseOrderItem
-     WHERE PurchaseOrder     = @iv_purchase_order
-       AND PurchaseOrderType = @iv_po_document_type
-      INTO @DATA(lv_total_net_price).
-
-    &quot; If the query fails, a CX_SY_OPEN_SQL_DB exception is raised and propagated.
-    &quot; If no items are found, SUM returns 0, correctly handling the business case.
-
-    &quot; Apply capping logic using the MIN intrinsic function for concise code.
-    rv_total_net_price = min( val1 = lv_total_net_price, val2 = &#39;10000&#39; ).
-
-  ENDMETHOD.
-
-ENDCLASS.
-</code></pre>
-<h2>Unit test: ZCL_PO_CALCULATE</h2>
-<p>This local test class provides unit tests for <code>zcl_po_calculate</code>. It uses the ABAP Test Double Framework to mock the CDS View <code>I_PurchaseOrderItem</code>, ensuring that the tests are isolated from the database and run predictably. The tests cover the main business scenarios: total price below the cap, total price above the cap, and no items found.</p>
-<pre><code class="language-abap">CLASS ltcl_test DEFINITION FINAL FOR TESTING
-  RISK LEVEL HARMLESS
-  DURATION SHORT.
-
-  PRIVATE SECTION.
-    TYPES:
-      tt_po_items TYPE STANDARD TABLE OF I_PurchaseOrderItem WITH EMPTY KEY.
-
-    CLASS-DATA:
-      go_cds_test_environment TYPE REF TO if_cds_test_environment.
-
-    METHODS:
-      setup    FOR TESTING,
-      teardown FOR TESTING,
-      test_sum_below_cap   FOR TESTING,
-      test_sum_above_cap   FOR TESTING,
-      test_no_items_found  FOR TESTING.
-
-ENDCLASS.
-
-
-CLASS ltcl_test IMPLEMENTATION.
-
-  METHOD setup.
-    &quot; Create a test double environment for the I_PurchaseOrderItem CDS view.
-    go_cds_test_environment = cl_cds_test_environment=&gt;create_for_multiple_cds(
-      i_for_cds_views = VALUE #( ( &#39;I_PurchaseOrderItem&#39; ) )
-    ).
-  ENDMETHOD.
-
-  METHOD teardown.
-    &quot; Destroy the test double environment after tests are executed.
-    go_cds_test_environment-&gt;destroy( ).
-  ENDMETHOD.
-
-  METHOD test_sum_below_cap.
-    &quot; Arrange: Create test data where the sum of net prices is below the 10000 cap.
-    DATA(lt_po_items) = VALUE tt_po_items(
-      ( PurchaseOrder = &#39;4500000001&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;4000.00&#39; )
-      ( PurchaseOrder = &#39;4500000001&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;3500.50&#39; )
-    ).
-    go_cds_test_environment-&gt;insert_test_data( i_data = lt_po_items ).
-
-    &quot; Act: Call the method under test.
-    DATA(lv_actual_price) = zcl_po_calculate=&gt;get_capped_total_net_price(
-      iv_purchase_order   = &#39;4500000001&#39;
-      iv_po_document_type = &#39;NB&#39;
-    ).
-
-    &quot; Assert: Verify that the result is the correct sum.
-    cl_abap_unit_assert=&gt;assert_equals(
-      exp = &#39;7500.50&#39;
-      act = lv_actual_price
-      msg = &#39;Failed: Sum should be below the cap.&#39;
-    ).
-  ENDMETHOD.
-
-  METHOD test_sum_above_cap.
-    &quot; Arrange: Create test data where the sum of net prices is above the 10000 cap.
-    DATA(lt_po_items) = VALUE tt_po_items(
-      ( PurchaseOrder = &#39;4500000002&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;8000.00&#39; )
-      ( PurchaseOrder = &#39;4500000002&#39; PurchaseOrderType = &#39;NB&#39; NetPriceAmount = &#39;9000.00&#39; )
-    ).
-    go_cds_test_environment-&gt;insert_test_data( i_data = lt_po_items ).
-
-    &quot; Act: Call the method under test.
-    DATA(lv_actual_price) = zcl_po_calculate=&gt;get_capped_total_net_price(
-      iv_purchase_order   = &#39;4500000002&#39;
-      iv_po_document_type = &#39;NB&#39;
-    ).
-
-    &quot; Assert: Verify that the result is capped at 10000.
-    cl_abap_unit_assert=&gt;assert_equals(
-      exp = &#39;10000.00&#39;
-      act = lv_actual_price
-      msg = &#39;Failed: Sum should be capped at 10000.&#39;
-    ).
-  ENDMETHOD.
-
-  METHOD test_no_items_found.
-    &quot; Arrange: No test data is inserted for the specified purchase order.
-
-    &quot; Act: Call the method with a PO that has no corresponding items in the test double.
-    DATA(lv_actual_price) = zcl_po_calculate=&gt;get_capped_total_net_price(
-      iv_purchase_order   = &#39;4500000003&#39;
-      iv_po_document_type = &#39;NB&#39;
-    ).
-
-    &quot; Assert: Verify that the result is 0 when no items are found.
-    cl_abap_unit_assert=&gt;assert_equals(
-      exp = &#39;0.00&#39;
-      act = lv_actual_price
-      msg = &#39;Failed: Sum should be 0 for non-existent items.&#39;
-    ).
-  ENDMETHOD.
-
-ENDCLASS.
+        <pre><code class="language-json">{
+  &quot;refactor_guide&quot;: [
+    {
+      &quot;step&quot;: 1,
+      &quot;action_type&quot;: &quot;MANUAL_CHECK&quot;,
+      &quot;title&quot;: &quot;PRE-REQUISITE: Check Dependencies&quot;,
+      &quot;description&quot;: &quot;The R3 function module has dependencies on standard database tables and a global variable. The global variable&#39;s usage context must be analyzed in the calling programs to ensure the logic is correctly replicated in the new S4 class method.&quot;,
+      &quot;object_name&quot;: &quot;N/A&quot;,
+      &quot;object_type&quot;: &quot;INFO&quot;,
+      &quot;code_snippet&quot;: &quot;Standard Tables:\n- EKKO\n- EKPO\n\nCustom Objects:\n- gv_bstyp (Global Variable)&quot;,
+      &quot;developer_note&quot;: &quot;The global variable `gv_bstyp` must be investigated. In the S4 implementation, this will be replaced by an explicit importing parameter `iv_po_category` in the new class method to ensure the method is self-contained and follows modern ABAP principles.&quot;
+    },
+    {
+      &quot;step&quot;: 2,
+      &quot;action_type&quot;: &quot;CREATE_OBJECT&quot;,
+      &quot;title&quot;: &quot;Create Global Class for Purchase Order Calculation&quot;,
+      &quot;description&quot;: &quot;Create a new global class `Z_CL_PO_CALCULATE` to encapsulate the business logic from the R3 function module `ZFM_IYH1HC2`. The logic is refactored to use modern ABAP 7.5+ syntax, including an optimized Open SQL query with an aggregate function (`SUM`) on S/4HANA CDS views and a conditional expression (`COND`) for the capping logic. This approach improves performance by pushing the aggregation down to the HANA database.&quot;,
+      &quot;object_name&quot;: &quot;Z_CL_PO_CALCULATE&quot;,
+      &quot;object_type&quot;: &quot;CLASS&quot;,
+      &quot;code_snippet&quot;: &quot;CLASS z_cl_po_calculate DEFINITION\n  PUBLIC\n  FINAL\n  CREATE PUBLIC .\n\n  PUBLIC SECTION.\n    INTERFACES if_oo_adt_classrun.\n\n    \&quot;! Calculates the total net price for a given purchase order\n    METHODS get_total_net_price\n      IMPORTING\n        iv_purchase_order TYPE ebeln\n        iv_po_category    TYPE bstyp\n      RETURNING\n        VALUE(rv_total_net_price) TYPE bprei.\n\n  PROTECTED SECTION.\n  PRIVATE SECTION.\nENDCLASS.\n\n\n\nCLASS z_cl_po_calculate IMPLEMENTATION.\n\n  METHOD get_total_net_price.\n\n    \&quot; Perform aggregation directly in Open SQL for HANA optimization.\n    SELECT SINGLE SUM( item~NetPriceAmount )\n      FROM i_purchaseorder AS header\n      INNER JOIN i_purchaseorderitem AS item ON item~PurchaseOrder = header~PurchaseOrder\n      WHERE header~PurchaseOrder     = @iv_purchase_order\n        AND header~PurchaseOrderType = @iv_po_category\n      INTO @DATA(lv_total_net_price).\n\n    \&quot; If no items are found, sy-subrc is 4 and the target variable is initial (0).\n    \&quot; The capping logic is applied using a conditional expression.\n    rv_total_net_price = COND #( WHEN lv_total_net_price &gt; 10000\n                                THEN 10000\n                                ELSE lv_total_net_price ).\n\n  ENDMETHOD.\n\n  METHOD if_oo_adt_classrun~main.\n    \&quot; Example execution for testing in ADT\n    DATA(lo_calculator) = NEW z_cl_po_calculate( ).\n\n    \&quot; Scenario 1: Total price below the cap\n    TRY.\n        DATA(lv_net_price_1) = lo_calculator-&gt;get_total_net_price(\n                                 iv_purchase_order = &#39;4500000000&#39; \&quot; Replace with a valid PO for testing\n                                 iv_po_category    = &#39;F&#39;          \&quot; Replace with a valid category\n                               ).\n        out-&gt;write( |PO 4500000000: Total Net Price = { lv_net_price_1 }| ).\n      CATCH cx_sy_open_sql_db.\n        out-&gt;write( &#39;Database error occurred for PO 4500000000.&#39; ).\n    ENDTRY.\n\n    \&quot; Scenario 2: PO not found (will result in 0)\n    TRY.\n        DATA(lv_net_price_2) = lo_calculator-&gt;get_total_net_price(\n                                 iv_purchase_order = &#39;9999999999&#39; \&quot; Non-existent PO\n                                 iv_po_category    = &#39;F&#39;\n                               ).\n        out-&gt;write( |PO 9999999999: Total Net Price = { lv_net_price_2 }| ).\n      CATCH cx_sy_open_sql_db.\n        out-&gt;write( &#39;Database error occurred for PO 9999999999.&#39; ).\n    ENDTRY.\n\n  ENDMETHOD.\n\nENDCLASS.&quot;,
+      &quot;developer_note&quot;: &quot;The new class `Z_CL_PO_CALCULATE` replaces the function module `ZFM_IYH1HC2`. The logic now uses S/4HANA CDS views `I_PurchaseOrder` and `I_PurchaseOrderItem` and performs calculations directly on the database, which is significantly more performant than the original R3 implementation that looped over an internal table.&quot;
+    },
+    {
+      &quot;step&quot;: 3,
+      &quot;action_type&quot;: &quot;UNIT_TEST&quot;,
+      &quot;title&quot;: &quot;Create ABAP Unit Test for Z_CL_PO_CALCULATE&quot;,
+      &quot;description&quot;: &quot;Create a local test class to verify the functionality of the `GET_TOTAL_NET_PRICE` method. The tests use the ABAP SQL Test Double Framework (`cl_osql_test_environment`) to mock the database selects from CDS views, ensuring the tests are isolated, fast, and reliable. Scenarios include a total price below the cap, a total price above the cap, and a case where the purchase order is not found.&quot;,
+      &quot;object_name&quot;: &quot;Z_CL_PO_CALCULATE&quot;,
+      &quot;object_type&quot;: &quot;UNIT_TEST&quot;,
+      &quot;code_snippet&quot;: &quot;CLASS ltcl_test DEFINITION FOR TESTING\n  RISK LEVEL HARMLESS\n  DURATION SHORT.\n\n  PRIVATE SECTION.\n    CLASS-DATA:\n      cut      TYPE REF TO z_cl_po_calculate,\n      test_env TYPE REF TO if_osql_test_environment.\n\n    METHODS:\n      setup FOR TESTING,\n      teardown FOR TESTING,\n      total_below_cap FOR TESTING,\n      total_above_cap FOR TESTING,\n      po_not_found FOR TESTING.\n\nENDCLASS.\n\n\nCLASS ltcl_test IMPLEMENTATION.\n\n  METHOD setup.\n    \&quot; Create an instance of the class under test\n    cut = NEW z_cl_po_calculate( ).\n    \&quot; Create a test environment for mocking database access\n    test_env = cl_osql_test_environment=&gt;create( i_dependency_list = VALUE #( ( &#39;I_PURCHASEORDER&#39; ) ( &#39;I_PURCHASEORDERITEM&#39; ) ) ).\n  ENDMETHOD.\n\n  METHOD teardown.\n    \&quot; Clean up the test environment\n    test_env-&gt;destroy( ).\n  ENDMETHOD.\n\n  METHOD total_below_cap.\n    \&quot; Arrange: Define test data where total net price is 500.00\n    DATA(lt_po_header) = VALUE i_purchaseorder_tp( ( purchaseorder = &#39;4500000001&#39; purchaseordertype = &#39;F&#39; ) ).\n    DATA(lt_po_item) = VALUE i_purchaseorderitem_tp( ( purchaseorder = &#39;4500000001&#39; netpriceamount = &#39;200.00&#39; )\n                                                     ( purchaseorder = &#39;4500000001&#39; netpriceamount = &#39;300.00&#39; ) ).\n\n    test_env-&gt;insert_test_data( lt_po_header ).\n    test_env-&gt;insert_test_data( lt_po_item ).\n\n    \&quot; Act: Call the method under test\n    DATA(lv_actual_price) = cut-&gt;get_total_net_price( iv_purchase_order = &#39;4500000001&#39; iv_po_category = &#39;F&#39; ).\n\n    \&quot; Assert: Verify the result is 500.00\n    cl_abap_unit_assert=&gt;assert_equals(\n      exp = CAST bprei( &#39;500.00&#39; )\n      act = lv_actual_price\n      msg = &#39;Total should be below the cap of 10000&#39;\n    ).\n  ENDMETHOD.\n\n  METHOD total_above_cap.\n    \&quot; Arrange: Define test data where total net price is 12000.00\n    DATA(lt_po_header) = VALUE i_purchaseorder_tp( ( purchaseorder = &#39;4500000002&#39; purchaseordertype = &#39;F&#39; ) ).\n    DATA(lt_po_item) = VALUE i_purchaseorderitem_tp( ( purchaseorder = &#39;4500000002&#39; netpriceamount = &#39;5000.00&#39; )\n                                                     ( purchaseorder = &#39;4500000002&#39; netpriceamount = &#39;7000.00&#39; ) ).\n\n    test_env-&gt;insert_test_data( lt_po_header ).\n    test_env-&gt;insert_test_data( lt_po_item ).\n\n    \&quot; Act: Call the method under test\n    DATA(lv_actual_price) = cut-&gt;get_total_net_price( iv_purchase_order = &#39;4500000002&#39; iv_po_category = &#39;F&#39; ).\n\n    \&quot; Assert: Verify the result is capped at 10000.00\n    cl_abap_unit_assert=&gt;assert_equals(\n      exp = CAST bprei( &#39;10000.00&#39; )\n      act = lv_actual_price\n      msg = &#39;Total should be capped at 10000&#39;\n    ).\n  ENDMETHOD.\n\n  METHOD po_not_found.\n    \&quot; Arrange: No data is inserted for the given PO number\n\n    \&quot; Act: Call the method with a non-existent PO\n    DATA(lv_actual_price) = cut-&gt;get_total_net_price( iv_purchase_order = &#39;9999999999&#39; iv_po_category = &#39;F&#39; ).\n\n    \&quot; Assert: Verify the result is 0\n    cl_abap_unit_assert=&gt;assert_equals(\n      exp = CAST bprei( &#39;0.00&#39; )\n      act = lv_actual_price\n      msg = &#39;Total should be 0 for a non-existent PO&#39;\n    ).\n  ENDMETHOD.\n\nENDCLASS.&quot;,
+      &quot;developer_note&quot;: &quot;This local test class should be included at the end of the global class source code in the &#39;Test Classes&#39; tab in ADT. It ensures that the business logic is validated correctly without requiring actual data in the development system.&quot;
+    }
+  ]
+}
 </code></pre>
 
     </div>

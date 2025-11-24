@@ -8,7 +8,7 @@ let mainTR;
 let PackageUrl;
 console.log("✅ createObject result:");
 
-async function syntaxCheck(mcp, Code, URL){
+async function syntaxCheck(mcp, Code, URL, active){
 /*********************************************************************/
 /*====================Syntax Check=======================*/
 /*********************************************************************/
@@ -51,29 +51,31 @@ try{
   const innerText_syntaxCheck = JSON.parse(parsed_syntaxCheck?.content?.[0]?.text); 
   if(innerText_syntaxCheck){
       const syntaxCheck_result = innerText_syntaxCheck?.result;
+      if(active){
 //  console.log(syntaxCheck_result);
-    if(!syntaxCheck_result.length){ 
+        if(!syntaxCheck_result.length){ 
 /*********************************************************************/
 /*==========================Active Class=============================*/
 /*********************************************************************/
-let activateByName;
-try{
-        activateByName = await mcp.callTool("activateByName",{
-        objectName : class_Name,
-        objectUrl : sourceMain_Url,
-    })
-} catch {
-        activateByName = await mcp.callTool("activateByName",{
-        objectName : class_Name,
-        objectSourceUrl : sourceMain_Url,
-    })
-}
-    const activate_status = activateByName?.content?.[0]?.text;
-    console.dir(activateByName,{depth:null})
-    }
-     return syntaxCheck_result;
-  }
-}
+                let activateByName;
+                try{
+                        activateByName = await mcp.callTool("activateByName",{
+                        objectName : class_Name,
+                        objectUrl : sourceMain_Url,
+                    })
+                } catch {
+                        activateByName = await mcp.callTool("activateByName",{
+                        objectName : class_Name,
+                        objectSourceUrl : sourceMain_Url,
+                    })
+                }
+                const activate_status = activateByName?.content?.[0]?.text;
+                console.dir(activateByName,{depth:null})
+              }
+              return syntaxCheck_result;
+          }else return syntaxCheck_result;
+        }else return '';
+      }
 }
 
 async function setObjectSource(mcp, objectSourceUrl, Source, lockHandle, transport){
@@ -104,7 +106,7 @@ try{
 /*********************************************************************/
 /*===========================Main flow===============================*/
 /*********************************************************************/
-export async function createClassMain(mcp, className,parentName,description,sourceCode) {
+export async function createClassMain(mcp, className,parentName,description,sourceCode,active) {
 /*********************************************************************/
 /*==========================Create Class=============================*/
 /*********************************************************************/
@@ -175,13 +177,13 @@ if (PackagerawText) {
     });
   }
 //    console.dir(createClass, { depth: null });
-    console.log(`Class ${className} has been created.`);
-    isError = !!createClass?.isError;
+/*     console.log(`Class ${className} has been created.`);
+    isError = !!createClass?.isError; */
 
 /*********************************************************************/
 /*==========================Lock Object==============================*/
 /*********************************************************************/
-if ( isError !== true ){
+//if ( isError !== true ){
   let lockObject;
   const class_name_lower = class_Name.toLowerCase();
   const objectUrl = `/sap/bc/adt/oo/classes/${class_name_lower}`;
@@ -203,7 +205,7 @@ if (rawText) {
   if(innerText){
   lockHandle = innerText?.lockHandle;
   await setObjectSource(mcp,objectUrl,sourceCode,lockHandle,mainTR);
-  const syntaxCheck_result = await syntaxCheck(mcp,sourceCode,objectUrl);
+  const syntaxCheck_result = await syntaxCheck(mcp,sourceCode,objectUrl,active);
   const wrapped = {
     result: syntaxCheck_result
   };
@@ -211,7 +213,7 @@ if (rawText) {
   return syntaxCheck_jsonString;
   }
 }
-}
+//}
 
 } catch (err) {
   console.error("❌ Error:", err?.message || err);

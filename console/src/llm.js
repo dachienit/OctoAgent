@@ -103,14 +103,6 @@ async function generateSpecification(r3SourceCode, additionalRequirement = "", h
  * @returns {Promise<string>} - The generated S4 ABAP code.
  */
 async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirement = "", historyID) {
-/*     let unitTest = "";
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    try {
-        unitTest = fs.readFileSync(path.resolve(`${__dirname}/../docs/testcase-prompt.md`), 'utf8');
-    } catch (err) {
-        console.error(`Error reading documentation file: ${err.message}`);
-    } */
     const filePath = path.join(
         __dirname,
         '..',
@@ -118,12 +110,8 @@ async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirem
         'S4_Refactor_Prompt.md'
     );
     let systemMessage = fs.readFileSync(filePath, 'utf8');
-/*     let len = systemMessage.length;
-    systemMessage = systemMessage.replace(/\$\{unitTest\}/g, unitTest);
-    len = systemMessage.length; */
-    const userMessage = `
-        OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.
-    `;
+
+    const userMessage = `OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.`;
 
     console.log("Converting R3 Code to S4...");
 
@@ -160,25 +148,26 @@ async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID) {
         'QA_Final_Guide_Generation.md'
     );
     const systemMessage = fs.readFileSync(filePath, 'utf8');
-    const userMessage = `
-        I've implemented the S4 code after refactor to SAP system in Eclipse but have some errors when active. Please check and fix.
-        
-        **Here is ABAP Code:**
-        \`\`\`abap\n${r3SourceCode}\n\`\`\`
+    const userMessage = `I've implemented the S4 code after refactor to SAP system in Eclipse but have some errors when active. Please check and fix. Here is json for errors returned from ATC check:\n ${issueLog}`;
 
-        **Here is json for errors returned from ATC check**
-        \n\`\`\`\n${issueLog}\n\`\`\`
-    `;
+/*             **Here is ABAP Code:**
+        \`\`\`abap\n${r3SourceCode}\n\`\`\` */
 
     console.log("Reviewing S4 Code...");
-    const { result, error } = await callLLM(systemMessage, userMessage, historyID);
-    if (error) {
-        throw new Error(`Failed to review code: ${error.message}`);
+
+    try{
+        const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+        if (error) {
+            throw new Error(`Failed to convert code: ${error.message}`);
+        }
+        if (result){
+            return result;
+        } else {
+            return '';
+        }
+    } catch (err) {
+        console.error('Error:', err);
     }
-    let raw = result.content || result.result;
-    raw = raw?.replace(/^```json\s*/i, '').replace(/```$/i, '');
-    const codeReview = JSON.parse(raw);
-    return codeReview;
 }
 
 async function createHistory(){
@@ -258,10 +247,8 @@ function extractBlocks(markdown){
     while ((match = codeRegex.exec(markdown)) !== null) {
         const code = match[1].trim();
 
-        // phần markdown trước block
         const before = markdown.substring(0, match.index);
 
-        // tìm heading trước nó
         const headings = [...before.matchAll(headingRegex)];
         let heading = "UNKNOWN";
 
@@ -275,7 +262,6 @@ function extractBlocks(markdown){
             type = "unit";
         }
 
-        // extract class name if có
         let className = null;
         const classMatch = heading.match(/Class:\s*([A-Za-z0-9_]+)/i);
         if (classMatch) {
@@ -329,35 +315,52 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
         let s4Code = await convertCodeToS4(r3SourceCode, specification, additionalRequirement, historyID); // Pass additionalRequirement
         currentHistory.push({"role": "assistant", "content": `**Initial S4 Code Conversion:**\n\`\`\`abap\n${s4Code}\n\`\`\``});
         console.log("Initial S4 Code Converted successfully.");
-        let abapCode = extractBlocks(s4Code);
+        
+        //let abapCode = extractBlocks(s4Code);
 
         // Push code to S4 system
+        let finalReviewReport = "";
         let issueLog = "";
         let phase2Json = parseDirtyJson(s4Code); 
         let targetBlock = phase2Json.refactor_guide.find(
-            item => item.action_type === "CREATE_OBJECT_WITH_CODE"
+            item => item.action_type === "CREATE_OBJECT"
         );
-        let objectType = "CLASS";//targetBlock.object_type;
-        let objectName = "Z_CL_PO_CALCULATE";
-        let codeSnippet = r3SourceCode;
+        const unitTestBlock = phase2Json.refactor_guide.find(
+            item => item.action_type === "UNIT_TEST"
+        );
+        let objectType = targetBlock.object_type;
+        let objectName = targetBlock.object_name;
+        let codeSnippet = targetBlock.code_snippet;
         if (objectType === "CLASS" && objectName && codeSnippet) {
             // For create new class to SAP system
-            let result = await createClassMain(
+            let resultMCP = await createClassMain(
                 mcpClient,
                 objectName,
                 packageName,
                 objectName,
                 codeSnippet,
-                transportNumber
+                "X"
             );
-            issueLog = JSON.parse(result);
+            issueLog = JSON.parse(resultMCP);
+            let issueLogString = issueLog.result
+                                .map(item => `Line ${item.line}: ${item.text}`)
+                                .join('\n');
             // Search any error
             issueLog.result = issueLog.result.filter(item => item.severity === "E");
             if(issueLog.result.length === 0){ // No any error after active code
+                // Push unit test to system
+                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+                    await createUnitText(
+                        mcpClient,
+                        objectName,
+                        unitTestBlock.code_snippet,
+                        transportNumber
+                    );
+                }
                 return {
                     result: {
                         finalS4Code: s4Code,
-                        finalReviewReport: issueLog,
+                        finalReviewReport: '',
                         specification: specification,
                         warning: ''
                     },
@@ -365,37 +368,72 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                 };
             }else{
                 // Phase 3: Review and Correct (Iterative)
+                finalReviewReport = '{ "review_phase": [ ';
                 let reviewIteration = 0;
                 const MAX_REVIEW_ITERATIONS = 3;
                 while (reviewIteration < MAX_REVIEW_ITERATIONS) {
                     try {
                         console.log(`Starting Code Review Iteration ${reviewIteration + 1}...`);
-                        let s4CodeReview = await reviewAndCorrectCode(result, r3SourceCode, historyID);
-                        phase2Json = parseDirtyJson(s4CodeReview); 
-                        targetBlock = phase2Json.refactor_guide.find(
-                            item => refactorGuide.action_type === "CREATE_OBJECT_WITH_CODE"
-                        );
-                        codeSnippet = targetBlock.code_snippet;
+                        let s4CodeReview = await reviewAndCorrectCode(issueLogString, r3SourceCode, historyID);
+                        if(!s4CodeReview){
+                            // Push unit test to system
+                            if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+                                await createUnitText(
+                                    mcpClient,
+                                    objectName,
+                                    unitTestBlock.code_snippet,
+                                    transportNumber
+                                );
+                            }
+                            return {
+                                result: {
+                                    finalS4Code: s4Code,
+                                    finalReviewReport: '',
+                                    specification: specification,
+                                    warning: ''
+                                },
+                                history: currentHistory
+                            };
+                        }
+                        let reviewJson = parseDirtyJson(s4CodeReview); 
+                        let reviewJsonString = JSON.stringify(reviewJson, null, 2); 
+                        if(reviewIteration === 0){
+                            finalReviewReport += reviewJsonString;
+                        } else finalReviewReport += ', ' + reviewJsonString;
 
-                        if (codeSnippet) {
+                        if (reviewJson.code_snippet) {
                             // For create new class to SAP system
-                            result = await createClassMain(
+                            resultMCP = await createClassMain(
                                 mcpClient,
                                 objectName,
                                 packageName,
                                 objectName,
-                                codeSnippet,
-                                transportNumber
+                                reviewJson.code_snippet,
+                                'X'
                             );
-                            issueLog = JSON.parse(result);
+                            issueLog = JSON.parse(resultMCP);
                             // Search any error again
                             issueLog.result = issueLog.result.filter(item => item.severity === "E");
                             if(issueLog.result.length === 0){
                                 console.log("Code approved by reviewer. Exiting review loop.");
+
+                                if(finalReviewReport){
+                                    finalReviewReport += "] }";
+                                }else finalReviewReport = "";
+
+                                // Push unit test to system
+                                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+                                    await createUnitText(
+                                        mcpClient,
+                                        objectName,
+                                        unitTestBlock.code_snippet,
+                                        transportNumber
+                                    );
+                                }
                                 return {
                                     result: {
-                                        finalS4Code: s4CodeReview,
-                                        finalReviewReport: issueLog,
+                                        finalS4Code: s4Code,
+                                        finalReviewReport: finalReviewReport,
                                         specification: specification,
                                         warning: ''
                                     },
@@ -413,10 +451,24 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
             }
         }
 
+        if(finalReviewReport){
+            finalReviewReport += "] }";
+        }else finalReviewReport = "";
+
+        // Push unit test code to S4 system
+        if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+            await createUnitText(
+                mcpClient,
+                objectName,
+                unitTestBlock.code_snippet,
+                transportNumber
+            );
+        }
+
         return {
             result: {
                 finalS4Code: s4Code,
-                finalReviewReport: '',
+                finalReviewReport: finalReviewReport,
                 specification: specification,
                 warning: ''//`Max review iterations (${MAX_REVIEW_ITERATIONS}) reached. Manual review recommended.`
             },
