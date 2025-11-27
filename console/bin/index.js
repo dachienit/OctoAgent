@@ -14,6 +14,8 @@ import fs from 'node:fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename)
 
+// test
+
 dotenv.config({path: `${__dirname}/../.env`})
 
 process.env.NODE_NO_WARNINGS = 1
