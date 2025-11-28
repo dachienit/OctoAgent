@@ -5,53 +5,30 @@ import cors from "cors";
 import dotenv from "dotenv";
 import chalk from "chalk";
 import { ask } from "../src/ask.js";
-//import path from "path";
 import { fileURLToPath } from "url";
 import { dirname } from 'path';
 import path from 'node:path';
 import fs from 'node:fs';
+import os from 'node:os';
 import { setGlobalDispatcher, ProxyAgent } from "undici";
 
 const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const frontendPath = path.join(__dirname, "../frontend");
-dotenv.config({path: `${__dirname}/../.env`})
+const __dirname = dirname(__filename);
 
-process.env.NODE_NO_WARNINGS = 1
-if (process.env.PROX) {
-    // Corporate proxy uses CA not in undici's certificate store
-    //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-    const dispatcher = new ProxyAgent({
-        uri: new URL(process.env.PROX).toString() ,
-        token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
-    });
-    setGlobalDispatcher(dispatcher);
-}
+dotenv.config({path: path.join(__dirname, '../.env')});
 
-async function getOAuth2AccessToken(jsonFilePath) {
+process.env.NODE_NO_WARNINGS = 1;
+async function getOAuth2AccessToken() {
   try {
-    // Read and parse the JSON file containing service key
-    //const serviceKeyData = await fs.readFile(jsonFilePath, 'utf8');
-
-     const serviceKeyData = fs.readFileSync(path.resolve(`${__dirname}/${jsonFilePath}`), 'utf8');
-    const serviceKey = JSON.parse(serviceKeyData);
-
-    // Extract OAuth 2.0 credentials from the JSON
-    const { clientid, clientsecret, url } = serviceKey;
-
-    // Validate required fields
-    if (!clientid || !clientsecret || !url) {
-      throw new Error('Missing required fields in service key JSON');
-    }
-
     // Prepare the OAuth 2.0 request
     const params = new URLSearchParams();
-    params.append('grant_type', 'client_credentials');
-    params.append('client_id', clientid);
-    params.append('client_secret', clientsecret);
+    params.append('client_id', process.env.CLIENT_ID);
+    params.append('scope', process.env.SCOPE);
+    params.append('client_secret', process.env.CLIENT_SECRET);
+    params.append('grant_type', process.env.GRANT_TYPE);
 
     // Make the POST request to get the access token
-    const response = await fetch(url+'/oauth/token', {
+    const response = await fetch(process.env.URL_TOKEN, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -84,62 +61,94 @@ async function getOAuth2AccessToken(jsonFilePath) {
 }
 
 try {
-    global.token = await getOAuth2AccessToken('../73aihkt.json');
-    //console.log('Access Token:', token.accessToken);
+    global.token = await getOAuth2AccessToken();
+    if (process.env.PROX) {
+      // Corporate proxy uses CA not in undici's certificate store
+      //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+      const dispatcher = new ProxyAgent({
+          uri: new URL(process.env.PROX).toString() ,
+          token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+      });
+      setGlobalDispatcher(dispatcher); 
+    }
+
     console.log('Token Type:', token.tokenType);
     console.log('Expires In:', token.expiresIn);
   } catch (error) {
     console.error('Failed to authenticate:', error.message);
   }
 
+// Setup Express server
 const app = express();
-app.use(cors());
-app.use(express.json());
-
 const PORT = process.env.PORT || 3000;
 
+// Middleware
+app.use(cors());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+// Serve static files from frontend directory
+const frontendPath = path.join(__dirname, '../frontend');
 app.use(express.static(frontendPath));
 
-// Health check
-app.get("/api/health", (req, res) => {
-  res.json({ ok: true });
+// API endpoint to get Windows username
+app.get('/api/userinfo', (req, res) => {
+  try {
+    // Get username from environment variable (Windows: USERNAME, Linux/Mac: USER)
+    // Or use os.userInfo() which works cross-platform
+    let username = '';
+    
+    if (process.platform === 'win32') {
+      // Windows - ưu tiên USERNAME
+      username = process.env.USERNAME || '';
+      if (!username) {
+        try {
+          username = os.userInfo().username || '';
+        } catch (err) {
+          console.error('Error getting user info:', err);
+        }
+      }
+    } else {
+      // Linux/Mac
+      username = process.env.USER || '';
+      if (!username) {
+        try {
+          username = os.userInfo().username || '';
+        } catch (err) {
+          console.error('Error getting user info:', err);
+        }
+      }
+    }
+    
+    console.log(`[API] Returning username: ${username}`);
+    res.json({ username: username || '' });
+  } catch (error) {
+    console.error('Error in /api/userinfo:', error);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
 });
 
-// SSE: stream log from ask()
-app.get("/api/logs/:issueKey", (req, res) => {
-  const { issueKey } = req.params;
+// API endpoint for chat
+app.post('/api/chat', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message || typeof message !== 'string') {
+      return res.status(400).json({ error: 'Message is required and must be a string' });
+    }
 
-  res.setHeader("Content-Type", "text/event-stream");
-  res.setHeader("Cache-Control", "no-cache");
-  res.setHeader("Connection", "keep-alive");
-  res.flushHeaders();
-
-  console.log(chalk.blue(`📡 Client connected for logs of ${issueKey}`));
-
-  const sendMessage = (msg) => {
-    res.write(`data: ${msg}\n\n`);
-  };
-
-  ask(issueKey, sendMessage)
-    .then(() => {
-      //sendMessage("✅ Refactor completed!");
-      res.end();
-    })
-    .catch((err) => {
-      sendMessage(`❌ Error: ${err.message}`);
-      res.end();
-    });
-
-  req.on("close", () => {
-    console.log(chalk.yellow(`Client disconnected from ${issueKey}`));
-  });
+    // Call the ask function
+    const response = await ask(message);
+    
+    res.json({ reply: response });
+  } catch (error) {
+    console.error('Error in /api/chat:', error);
+    res.status(500).json({ error: 'Internal server error', message: error.message });
+  }
 });
 
-// Fallback for SPA
-app.get("*", (req, res) => {
-  res.sendFile(path.join(frontendPath, "index.html"));
-});
-
+// Start server
 app.listen(PORT, () => {
-  console.log(chalk.green(`✅ Server running at http://localhost:${PORT}`));
+  console.log(chalk.green(`Server is running on http://localhost:${PORT}`));
+  console.log(chalk.blue(`Frontend is available at http://localhost:${PORT}`));
 });

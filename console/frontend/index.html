@@ -1,33 +1,121 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>SAP BTP Hackathon 2025</title>
-  <link rel="stylesheet" href="./style.css" />
-</head>
-<body>
-  <div class="page">
-    <div class="hero">
-      <h1 class="title">
-        <img src="./logo.png" alt="Logo" class="logo" />
-        <span>SAP BTP Hackathon 2025 - NHV team</span>
-      </h1>
+<!DOCTYPE html>
+<html lang="vi">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Chatbox với Settings ENV</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="app">
+      <!-- Left Sidebar -->
+      <aside id="leftSidebar" class="sidebar sidebar-left collapsed">
+        <div class="sidebar-content">
+          <button id="newChatBtn" class="btn-new-chat">
+            <span class="icon">+</span>
+            <span>New Chat</span>
+          </button>
+          
+          <div class="recent-chats-section">
+            <div class="section-header" id="recentChatsToggle">
+              <span>Recent Chats</span>
+              <span class="toggle-icon">▼</span>
+            </div>
+            <div id="recentChatsList" class="recent-chats-list">
+              <div class="chat-item active">
+                <span class="chat-icon">🧠</span>
+                <div class="chat-info">
+                  <span class="chat-title">ABAP</span>
+                  <span class="chat-time">12h ago</span>
+                </div>
+              </div>
+              <div class="chat-item">
+                <span class="chat-icon">🧠</span>
+                <div class="chat-info">
+                  <span class="chat-title">RAP Expert</span>
+                  <span class="chat-time">11/14/2025</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <button id="leftSidebarToggle" class="sidebar-toggle sidebar-toggle-left" title="Mở sidebar trái">▶</button>
+      </aside>
 
-      <div class="searchbar">
-        <div class="plus">+</div>
-        <input id="input" placeholder="Enter Jira IssueKey ..." />
-        <button id="send" title="Send">
-          <img src="./send.png" alt="Send" class="icon" />
-        </button>
-      </div>
+      <!-- Main Content -->
+      <main class="main-content">
+        <div class="chat-header">
+          <div class="brain-info">
+            <span class="brain-icon">🧠</span>
+            <span id="currentBrainName">ABAP ABAP Expert</span>
+          </div>
+        </div>
+
+        <div class="chat-container">
+          <div id="messages" class="messages"></div>
+
+          <form id="chatForm" class="chat-input" autocomplete="off">
+            <textarea
+              id="userInput"
+              rows="2"
+              placeholder="Send a message to brain 'ABAP'..."
+            ></textarea>
+            <div id="commandMenu" class="command-menu hidden">
+              <button type="button" class="command-item" data-command="phân tích">@phân tích</button>
+              <button type="button" class="command-item" data-command="sữa mã">@sữa mã</button>
+              <button type="button" class="command-item" data-command="review">@review</button>
+            </div>
+            <button type="submit" class="btn-send">
+              <span>↑</span>
+            </button>
+          </form>
+        </div>
+
+        <div id="waitOverlay" class="wait-overlay hidden">
+          <div class="wait-box">
+            <span class="spinner"></span>
+            <span>Please wait ...</span>
+          </div>
+        </div>
+      </main>
+
+      <!-- Right Sidebar (Settings) -->
+      <aside id="rightSidebar" class="sidebar sidebar-right collapsed">
+        <button id="rightSidebarToggle" class="sidebar-toggle sidebar-toggle-right" title="Mở sidebar phải">◀</button>
+        <div class="sidebar-content">
+          <div class="section-header" id="settingsToggle">
+            <span>Setting</span>
+            <span class="toggle-icon">▼</span>
+          </div>
+          
+          <section id="settingsPanel" class="settings-panel">
+            <h2>Cấu hình ENV</h2>
+            <div class="settings-grid">
+              <label class="field">
+                <span>Client Secret</span>
+                <input id="envClientSecret" type="password" placeholder="Nhập Client Secret" />
+              </label>
+              <label class="field">
+                <span>Brain ID</span>
+                <input id="envBrainId" type="text" placeholder="Nhập Brain ID" />
+              </label>
+              <label class="field">
+                <span>NTID</span>
+                <input id="envNtid" type="text" placeholder="NTID (mặc định từ Windows account)" />
+              </label>
+            </div>
+            <div class="settings-actions">
+              <button id="saveSettings" class="btn-primary">Lưu cấu hình</button>
+              <button id="resetSettings" class="btn-ghost">Reset</button>
+            </div>
+            <p class="settings-hint">
+              Các giá trị này chỉ được lưu trong trình duyệt (localStorage), không gửi lên server cho đến khi bạn gửi tin nhắn.
+            </p>
+          </section>
+        </div>
+      </aside>
     </div>
 
-    <div id="chat-window" class="chat-window hidden">
-      <div id="messages" class="messages"></div>
-    </div>
-  </div>
-
-  <script src="./app.js"></script>
-</body>
+    <script src="script.js"></script>
+  </body>
 </html>
