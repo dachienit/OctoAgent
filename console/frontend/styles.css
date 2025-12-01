@@ -305,6 +305,10 @@ body {
   padding: 20px;
   gap: 16px;
   overflow: hidden;
+  max-width: 900px;
+  width: 100%;
+  margin: 0 auto;
+  align-self: center;
 }
 
 .messages {
@@ -341,7 +345,7 @@ body {
   border-radius: 16px;
   font-size: 14px;
   line-height: 1.5;
-  white-space: pre-wrap;
+  white-space: normal;
   word-wrap: break-word;
   animation: fadeIn 0.3s ease;
 }
@@ -801,3 +805,129 @@ abap {
     max-width: 90%;
   }
 }
+/* ==========================================================================
+   MARKDOWN RENDERING — ChatGPT Style
+   (Thêm đầy đủ vào cuối file CSS gốc)
+========================================================================== */
+
+/* Typography */
+.message.bot h1,
+.message.bot h2,
+.message.bot h3,
+.message.bot h4 {
+  font-weight: 600;
+  margin: 18px 0 10px;
+  color: #111;
+}
+
+.message.bot h1 { font-size: 22px; }
+.message.bot h2 { font-size: 20px; }
+.message.bot h3 { font-size: 18px; }
+.message.bot h4 { font-size: 16px; }
+
+/* Paragraph */
+.message.bot p {
+  margin: 10px 0;
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* Lists */
+.message.bot ul,
+.message.bot ol {
+  margin: 12px 0;
+  padding-left: 24px;
+  font-size: 15px;
+}
+
+.message.bot li {
+  margin: 4px 0;
+  line-height: 1.6;
+}
+
+/* Inline Code */
+.message.bot code {
+  background: #f3f4f6;
+  border-radius: 6px;
+  padding: 2px 5px;
+  font-size: 13px;
+  font-family: ui-monospace, monospace;
+}
+
+/* Code Block */
+.message.bot pre {
+  background: #f3f4f6;
+  padding: 14px;
+  border-radius: 12px;
+  margin: 14px 0;
+  overflow-x: auto;
+  border: 1px solid #e5e7eb;
+}
+
+.message.bot pre code {
+  background: none !important;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+/* Blockquote */
+.message.bot blockquote {
+  border-left: 4px solid #d1d5db;
+  padding-left: 12px;
+  color: #6b7280;
+  margin: 12px 0;
+  font-style: italic;
+}
+
+/* Horizontal line */
+.message.bot hr {
+  border: none;
+  border-top: 1px solid #e5e7eb;
+  margin: 20px 0;
+}
+
+/* Tables */
+.message.bot table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 14px 0;
+}
+
+.message.bot th,
+.message.bot td {
+  border: 1px solid #e5e7eb;
+  padding: 8px 10px;
+  font-size: 14px;
+}
+
+.message.bot th {
+  background: #f9fafb;
+  font-weight: 600;
+}
+
+/* Image */
+.message.bot img {
+  max-width: 100%;
+  border-radius: 12px;
+  margin: 14px 0;
+}
+
+/* Links */
+.message.bot a {
+  color: #2563eb;
+  text-decoration: underline;
+}
+.message.bot a:hover {
+  color: #1d4ed8;
+}
+
+/* Fix spacing inside .message */
+.message.bot > *:first-child {
+  margin-top: 0 !important;
+}
+.message.bot > *:last-child {
+  margin-bottom: 0 !important;
+}
+
+

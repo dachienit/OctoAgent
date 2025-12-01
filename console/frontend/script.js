@@ -29,6 +29,11 @@ function renderBotText(text) {
   const startTag = "<abap>";
   const endTag = "</abap>";
 
+    // Nếu KHÔNG có <abap> → parse Markdown bằng marked
+  if (!text.includes(startTag)) {
+    return marked.parse(text);
+  }
+  
   let html = "";
   let cursor = 0;
 

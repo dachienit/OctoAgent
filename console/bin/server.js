@@ -126,6 +126,7 @@ app.get('/api/userinfo', (req, res) => {
     console.error('Error in /api/userinfo:', error);
     res.status(500).json({ error: 'Internal server error', message: error.message });
   }
+
 });
 
 // API endpoint for chat
