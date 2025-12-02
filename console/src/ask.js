@@ -11,6 +11,7 @@ import axios from 'axios';
 import { promises } from "node:dns";
 import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
+import { dirname } from 'path';
 
 marked.use(markedTerminal());
 /**
@@ -47,8 +48,8 @@ function createHtmlReport(title, bodyContent) {
 </html>`;
 }
 
-async function createHistory(){
-    const url = process.env.DIA_HISTORY + "/" + process.env.BRAIN_ID 
+async function createHistory() {
+    const url = process.env.DIA_HISTORY + "/" + process.env.BRAIN_ID
     try {
         const response = await fetch(url,
             {
@@ -78,17 +79,17 @@ async function createHistory(){
 }
 
 async function generateSpecification(r3SourceCode, additionalRequirement = "", historyID) {
-    const __filename = fileURLToPath(import.meta.url);
-    const __dirname = path.dirname(__filename);
-    const filePath = path.join(
-        __dirname,
-        '..',
-        'docs',
-        'Decomposed AI Architecture.md'
-        //'S4_Refactor_Prompt.md'
-        //'testcase-prompt.md'
-    );
-    
+    /*     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
+        const __dirname = dirname(__filename);
+        const filePath = path.join(
+            __dirname,
+            '..',
+            'docs',
+            'Decomposed AI Architecture.md'
+            //'S4_Refactor_Prompt.md'
+            //'testcase-prompt.md'
+        ); */
+
     try {
         //let systemMessage = fs.readFile(filePath, 'utf8');
         //systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
@@ -122,7 +123,7 @@ Provide the specification in a structured, readable markdown format ONLY.
         if (error) {
             throw new Error(`Failed to generate specification: ${error.message}`);
         }
-    return result;
+        return result;
     } catch (err) {
         console.error('Error:', err);
     }
@@ -143,7 +144,7 @@ async function callLLM(systemMessage, userMessage, historyID) {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token.accessToken}`,
-                    "Content-Type": "application/json"  ,
+                    "Content-Type": "application/json",
                     "Accept": "application/json"
                 },
                 body: JSON.stringify(body)
@@ -174,14 +175,14 @@ async function callLLM(systemMessage, userMessage, historyID) {
  * @returns {Promise<string>} - The response message.
  */
 export async function ask(userMessage) {
-  // Return "bạn vừa nhập" + the user's input
-  //return `bạn vừa nhập ${userMessage}`;
+    // Return "bạn vừa nhập" + the user's input
+    //return `bạn vừa nhập ${userMessage}`;
 
-  // Create chat history
-  const historyID = await createHistory();
+    // Create chat history
+    const historyID = await createHistory();
 
-  // Phase 1: Generate Specification
-  const specification = await generateSpecification(userMessage, "", historyID); // Pass additionalRequirement
-  
-  return specification;
+    // Phase 1: Generate Specification
+    const specification = await generateSpecification(userMessage, "", historyID); // Pass additionalRequirement
+
+    return specification;
 }

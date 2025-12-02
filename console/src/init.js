@@ -9,13 +9,13 @@ import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import path from 'node:path';
 
-const __filename = fileURLToPath(import.meta.url);
+const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
 const __dirname = dirname(__filename)
 
 marked.use(markedTerminal());
 
 
-function splitTextIntoChunks(text, chunkSize = 512){
+function splitTextIntoChunks(text, chunkSize = 512) {
   const chunks = [];
   for (let i = 0; i < text.length; i += chunkSize) {
     chunks.push(text.substring(i, i + chunkSize));
@@ -24,13 +24,13 @@ function splitTextIntoChunks(text, chunkSize = 512){
 }
 async function getVector(text) {
   const response = await fetch('https://ews-emea.api.bosch.com/knowledge/insight-and-analytics/llms/d/v/embeddings',
-    {  
+    {
       method: "POST",
       headers: {
-          "api-key": process.env.API_KEY,
-          "Content-Type": "application/json"
+        "api-key": process.env.API_KEY,
+        "Content-Type": "application/json"
       },
-      body: JSON.stringify({model: process.env.EMBED, input: text})
+      body: JSON.stringify({ model: process.env.EMBED, input: text })
     }
   )
   const result = await response.json();
@@ -47,7 +47,7 @@ export const init = async () => {
         message: "Input knowledge file path",
       },
     ])
-    .then( (answers) => {
+    .then((answers) => {
       const spinner = ora(`...`).start();
       try {
         let docs = ""
@@ -55,7 +55,7 @@ export const init = async () => {
         const chunks = splitTextIntoChunks(docs);
         chunks.forEach(async (chunk, index) => {
           const vector = await getVector(chunk);
-          if(vector){
+          if (vector) {
             // TODO
             spinner.succeed(chalk.green(`Indexed chunk ${index}!`));
           } else {
@@ -63,7 +63,7 @@ export const init = async () => {
           }
         })
       } catch (err) {
-          spinner.fail(chalk.red(`${JSON.stringify(err)}!`));
+        spinner.fail(chalk.red(`${JSON.stringify(err)}!`));
       }
     });
 };

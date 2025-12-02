@@ -4,6 +4,7 @@ const defaultEnv = {
   clientSecret: "",
   brainId: "",
   ntid: "",
+  customPrompt: "",
 };
 
 // Biến toàn cục để lưu settings, có thể truy cập từ bất kỳ đâu
@@ -29,11 +30,11 @@ function renderBotText(text) {
   const startTag = "<abap>";
   const endTag = "</abap>";
 
-    // Nếu KHÔNG có <abap> → parse Markdown bằng marked
+  // Nếu KHÔNG có <abap> → parse Markdown bằng marked
   if (!text.includes(startTag)) {
     return marked.parse(text);
   }
-  
+
   let html = "";
   let cursor = 0;
 
@@ -136,7 +137,7 @@ async function getWindowsNtid() {
     console.log('[getWindowsNtid] Using cached username:', cachedWindowsUsername);
     return cachedWindowsUsername;
   }
-  
+
   try {
     console.log('[getWindowsNtid] Fetching username from API...');
     // Gọi API từ server để lấy Windows username
@@ -155,7 +156,7 @@ async function getWindowsNtid() {
   } catch (error) {
     console.error('[getWindowsNtid] Error fetching Windows username:', error);
   }
-  
+
   // Fallback: thử lấy từ path
   try {
     const path = window.location.pathname || "";
@@ -169,7 +170,7 @@ async function getWindowsNtid() {
   } catch (err) {
     console.error('[getWindowsNtid] Error parsing path:', err);
   }
-  
+
   console.warn('[getWindowsNtid] No username found, returning empty string');
   return "";
 }
@@ -187,7 +188,8 @@ function createMessageElement({ role, text, env, time }) {
 
   const meta = document.createElement("div");
   meta.className = "message-meta";
-  const who = role === "user" ? "Bạn" : "Bot";
+  // Use NTID if available for user, otherwise default to "Bạn"
+  const who = role === "user" ? (env && env.ntid ? env.ntid : "Bạn") : "Octo Agent";
   meta.innerHTML = `<span>${who}</span><span>${time || formatTime()}</span>`;
 
   const content = document.createElement("div");
@@ -200,26 +202,6 @@ function createMessageElement({ role, text, env, time }) {
   wrapper.appendChild(meta);
   wrapper.appendChild(content);
 
-  if (role === "user" && env) {
-    const pillRow = document.createElement("div");
-    pillRow.className = "pill-row";
-
-    const items = [
-      ["Client Secret", env.clientSecret ? "***" : "chưa đặt"],
-      ["Brain ID", env.brainId || "chưa đặt"],
-      ["NTID", env.ntid || "chưa đặt"],
-    ];
-
-    items.forEach(([label, value]) => {
-      const pill = document.createElement("span");
-      pill.className = "env-pill";
-      pill.innerHTML = `<span>${label}:</span> ${value}`;
-      pillRow.appendChild(pill);
-    });
-
-    wrapper.appendChild(pillRow);
-  }
-
   return wrapper;
 }
 
@@ -229,12 +211,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const rightSidebar = document.getElementById("rightSidebar");
   const leftSidebarToggle = document.getElementById("leftSidebarToggle");
   const rightSidebarToggle = document.getElementById("rightSidebarToggle");
-  
+
   // Left sidebar elements
   const newChatBtn = document.getElementById("newChatBtn");
   const recentChatsToggle = document.getElementById("recentChatsToggle");
   const recentChatsList = document.getElementById("recentChatsList");
-  
+
   // Right sidebar elements
   const settingsToggle = document.getElementById("settingsToggle");
   const settingsPanel = document.getElementById("settingsPanel");
@@ -243,6 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const envClientSecret = document.getElementById("envClientSecret");
   const envBrainId = document.getElementById("envBrainId");
   const envNtid = document.getElementById("envNtid");
+  const envCustomPrompt = document.getElementById("envCustomPrompt");
 
   // Chat elements
   const chatForm = document.getElementById("chatForm");
@@ -251,7 +234,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const submitBtn = chatForm.querySelector("button[type='submit']") || chatForm.querySelector(".btn-send");
   const commandMenu = document.getElementById("commandMenu");
   const waitOverlay = document.getElementById("waitOverlay");
-  
+
+  // Modal elements
+  const expandPromptBtn = document.getElementById("expandPromptBtn");
+  const promptModal = document.getElementById("promptModal");
+  const modalCustomPrompt = document.getElementById("modalCustomPrompt");
+  const closePromptModal = document.getElementById("closePromptModal");
+  const applyPromptBtn = document.getElementById("applyPromptBtn");
+  const cancelPromptBtn = document.getElementById("cancelPromptBtn");
+  const charCount = document.getElementById("charCount");
+
   // Sidebar toggle functions
   leftSidebarToggle.addEventListener("click", () => {
     leftSidebar.classList.toggle("collapsed");
@@ -259,14 +251,14 @@ document.addEventListener("DOMContentLoaded", () => {
     leftSidebarToggle.textContent = isCollapsed ? "▶" : "◀";
     leftSidebarToggle.title = isCollapsed ? "Mở sidebar trái" : "Thu sidebar trái";
   });
-  
+
   rightSidebarToggle.addEventListener("click", () => {
     rightSidebar.classList.toggle("collapsed");
     const isCollapsed = rightSidebar.classList.contains("collapsed");
     rightSidebarToggle.textContent = isCollapsed ? "◀" : "▶";
     rightSidebarToggle.title = isCollapsed ? "Mở sidebar phải" : "Thu sidebar phải";
   });
-  
+
   // Set initial state - both sidebars collapsed by default
   // Đảm bảo cả 2 sidebar đều collapsed khi load
   if (!leftSidebar.classList.contains("collapsed")) {
@@ -279,19 +271,19 @@ document.addEventListener("DOMContentLoaded", () => {
   rightSidebarToggle.textContent = "◀";
   leftSidebarToggle.title = "Mở sidebar trái";
   rightSidebarToggle.title = "Mở sidebar phải";
-  
+
   // Recent Chats toggle
   recentChatsToggle.addEventListener("click", () => {
     recentChatsToggle.classList.toggle("collapsed");
     recentChatsList.classList.toggle("collapsed");
   });
-  
+
   // Settings toggle
   settingsToggle.addEventListener("click", () => {
     settingsToggle.classList.toggle("collapsed");
     settingsPanel.classList.toggle("hidden");
   });
-  
+
   // New Chat button
   newChatBtn.addEventListener("click", () => {
     // Clear messages
@@ -305,7 +297,7 @@ document.addEventListener("DOMContentLoaded", () => {
     // You can add more logic here to create a new chat session
     console.log("New chat created");
   });
-  
+
   // Chat items click handler
   document.querySelectorAll(".chat-item").forEach(item => {
     item.addEventListener("click", () => {
@@ -344,15 +336,16 @@ document.addEventListener("DOMContentLoaded", () => {
   const currentEnv = loadEnv();
   envClientSecret.value = currentEnv.clientSecret || "";
   envBrainId.value = currentEnv.brainId || "";
-  
+  envCustomPrompt.value = currentEnv.customPrompt || "";
+
   // Tự động lấy Windows username và điền vào NTID
   (async () => {
     console.log('[DOMContentLoaded] Loading NTID...');
     console.log('[DOMContentLoaded] Current env ntid:', currentEnv.ntid);
-    
+
     const defaultNtid = await getWindowsNtid();
     console.log('[DOMContentLoaded] Got default NTID:', defaultNtid);
-    
+
     if (defaultNtid) {
       // Nếu có NTID từ Windows và chưa có trong env, hoặc env trống
       if (!currentEnv.ntid || currentEnv.ntid === "") {
@@ -389,6 +382,7 @@ document.addEventListener("DOMContentLoaded", () => {
       clientSecret: envClientSecret.value.trim(),
       brainId: envBrainId.value.trim(),
       ntid: ntidValue,
+      customPrompt: envCustomPrompt.value.trim(),
     };
     saveEnv(newEnv);
     // simple visual feedback
@@ -401,11 +395,66 @@ document.addEventListener("DOMContentLoaded", () => {
   resetSettingsBtn.addEventListener("click", async () => {
     envClientSecret.value = "";
     envBrainId.value = "";
+    envCustomPrompt.value = "";
     const defaultNtid = await getWindowsNtid();
     envNtid.value = defaultNtid;
     const resetEnv = { ...defaultEnv, ntid: defaultNtid };
     saveEnv(resetEnv);
   });
+
+  // Modal handlers for Custom Prompt
+  if (expandPromptBtn && promptModal && modalCustomPrompt) {
+    // Open modal
+    expandPromptBtn.addEventListener("click", () => {
+      modalCustomPrompt.value = envCustomPrompt.value;
+      if (charCount) {
+        charCount.textContent = modalCustomPrompt.value.length;
+      }
+      promptModal.classList.remove("hidden");
+    });
+
+    // Close modal
+    const closeModal = () => {
+      promptModal.classList.add("hidden");
+    };
+
+    if (closePromptModal) {
+      closePromptModal.addEventListener("click", closeModal);
+    }
+
+    if (cancelPromptBtn) {
+      cancelPromptBtn.addEventListener("click", closeModal);
+    }
+
+    // Apply and close
+    if (applyPromptBtn) {
+      applyPromptBtn.addEventListener("click", () => {
+        envCustomPrompt.value = modalCustomPrompt.value;
+        closeModal();
+      });
+    }
+
+    // Update character count
+    modalCustomPrompt.addEventListener("input", () => {
+      if (charCount) {
+        charCount.textContent = modalCustomPrompt.value.length;
+      }
+    });
+
+    // Close on escape key
+    promptModal.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        closeModal();
+      }
+    });
+
+    // Close on backdrop click
+    promptModal.addEventListener("click", (e) => {
+      if (e.target === promptModal) {
+        closeModal();
+      }
+    });
+  }
 
   function scrollToBottom() {
     messages.scrollTop = messages.scrollHeight;

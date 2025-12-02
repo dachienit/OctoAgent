@@ -5,18 +5,18 @@ import path from 'node:path';
 import { readFile } from 'fs/promises';
 import { createUnitText } from "./createUnitTestClass.js";
 import { createClassMain } from "./createClass.js";
-import { MCPClient } from "./mcpClient.js";
+import { MCPClient } from "./MCPClient.js";
 import { findMCPrepo } from "./findMCP.js";
 
-const __filename = fileURLToPath(import.meta.url);
+const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
 const __dirname = dirname(__filename);
 
 var docs = "";
-try {
+/* try {
     docs = fs.readFileSync(path.resolve(`${__dirname}/../docs/index.txt`), 'utf8');
 } catch (err) {
     console.error(`Error reading documentation file: ${err.message}`);
-}
+} */
 
 async function callLLM(systemMessage, userMessage, historyID) {
     const body = {
@@ -33,7 +33,7 @@ async function callLLM(systemMessage, userMessage, historyID) {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${token.accessToken}`,
-                    "Content-Type": "application/json"  ,
+                    "Content-Type": "application/json",
                     "Accept": "application/json"
                 },
                 body: JSON.stringify(body)
@@ -65,7 +65,7 @@ async function callLLM(systemMessage, userMessage, historyID) {
  * @returns {Promise<string>} - The generated S4 specification.
  */
 async function generateSpecification(r3SourceCode, additionalRequirement = "", historyID) {
-    const __filename = fileURLToPath(import.meta.url);
+    /* const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const filePath = path.join(
         __dirname,
@@ -75,7 +75,7 @@ async function generateSpecification(r3SourceCode, additionalRequirement = "", h
         //'S4_Refactor_Prompt.md'
         //'testcase-prompt.md'
     );
-    
+
     try {
         let systemMessage = fs.readFileSync(filePath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
@@ -89,10 +89,11 @@ async function generateSpecification(r3SourceCode, additionalRequirement = "", h
         if (error) {
             throw new Error(`Failed to generate specification: ${error.message}`);
         }
-    return result;
+        return result;
     } catch (err) {
         console.error('Error:', err);
-    }
+    } */
+    return "";
 }
 
 /**
@@ -103,7 +104,7 @@ async function generateSpecification(r3SourceCode, additionalRequirement = "", h
  * @returns {Promise<string>} - The generated S4 ABAP code.
  */
 async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirement = "", historyID) {
-    const filePath = path.join(
+    /* const filePath = path.join(
         __dirname,
         '..',
         'docs',
@@ -115,19 +116,20 @@ async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirem
 
     console.log("Converting R3 Code to S4...");
 
-    try{
+    try {
         const { result, error } = await callLLM(systemMessage, userMessage, historyID);
         if (error) {
             throw new Error(`Failed to convert code: ${error.message}`);
         }
-        if (result){
+        if (result) {
             return result;
         } else {
             return '';
         }
     } catch (err) {
         console.error('Error:', err);
-    }
+    } */
+    return "";
 }
 
 /**
@@ -139,7 +141,7 @@ async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirem
  * @returns {Promise<{reviewReport: string, needsCorrection: boolean}>} - A review report and a flag indicating if corrections are needed.
  */
 async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID) {
-    const __filename = fileURLToPath(import.meta.url);
+    /* const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const filePath = path.join(
         __dirname,
@@ -150,28 +152,26 @@ async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID) {
     const systemMessage = fs.readFileSync(filePath, 'utf8');
     const userMessage = `I've implemented the S4 code after refactor to SAP system in Eclipse but have some errors when active. Please check and fix. Here is json for errors returned from ATC check:\n ${issueLog}`;
 
-/*             **Here is ABAP Code:**
-        \`\`\`abap\n${r3SourceCode}\n\`\`\` */
-
     console.log("Reviewing S4 Code...");
 
-    try{
+    try {
         const { result, error } = await callLLM(systemMessage, userMessage, historyID);
         if (error) {
             throw new Error(`Failed to convert code: ${error.message}`);
         }
-        if (result){
+        if (result) {
             return result;
         } else {
             return '';
         }
     } catch (err) {
         console.error('Error:', err);
-    }
+    } */
+    return "";
 }
 
-async function createHistory(){
-    const url = process.env.DIA_HISTORY + "/" + process.env.BRAIN_ID 
+async function createHistory() {
+    const url = process.env.DIA_HISTORY + "/" + process.env.BRAIN_ID
     try {
         const response = await fetch(url,
             {
@@ -200,8 +200,8 @@ async function createHistory(){
     }
 }
 
-async function deleteHistory( historyID ){
-    const url = process.env.DIA_HISTORY + "/" + historyID 
+async function deleteHistory(historyID) {
+    const url = process.env.DIA_HISTORY + "/" + historyID
     try {
         const response = await fetch(url,
             {
@@ -237,7 +237,7 @@ function parseDirtyJson(finalS4Code) {
     return JSON.parse(cleaned);
 }
 
-function extractBlocks(markdown){
+function extractBlocks(markdown) {
     const codeRegex = /```abap([\s\S]*?)```/gi;
     const headingRegex = /(#+\s*Class:[^\n]+|Class:[^\n]+)/gi;
 
@@ -299,7 +299,7 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
         const login = await mcpClient.callTool("login", {});
         console.log(login);
 
-        currentHistory.push({"role": "user", "content": `Please start the R3 to S4 conversion process for the following R3 code:\n\`\`\`abap\n${r3SourceCode}\n\`\`\`\nAdditional requirements: ${additionalRequirement}`});
+        currentHistory.push({ "role": "user", "content": `Please start the R3 to S4 conversion process for the following R3 code:\n\`\`\`abap\n${r3SourceCode}\n\`\`\`\nAdditional requirements: ${additionalRequirement}` });
 
         docs = docs.replace(/\$\{nameSpace\}/g, additionalRequirement);
 
@@ -308,20 +308,20 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
 
         // Phase 1: Generate Specification
         const specification = await generateSpecification(r3SourceCode, additionalRequirement, historyID); // Pass additionalRequirement
-        currentHistory.push({"role": "assistant", "content": `**Generated S4 Specification:**\n${specification}`});
+        currentHistory.push({ "role": "assistant", "content": `**Generated S4 Specification:**\n${specification}` });
         console.log("Specification Generated successfully.");
 
         // Phase 2: Convert Code
         let s4Code = await convertCodeToS4(r3SourceCode, specification, additionalRequirement, historyID); // Pass additionalRequirement
-        currentHistory.push({"role": "assistant", "content": `**Initial S4 Code Conversion:**\n\`\`\`abap\n${s4Code}\n\`\`\``});
+        currentHistory.push({ "role": "assistant", "content": `**Initial S4 Code Conversion:**\n\`\`\`abap\n${s4Code}\n\`\`\`` });
         console.log("Initial S4 Code Converted successfully.");
-        
+
         //let abapCode = extractBlocks(s4Code);
 
         // Push code to S4 system
         let finalReviewReport = "";
         let issueLog = "";
-        let phase2Json = parseDirtyJson(s4Code); 
+        let phase2Json = parseDirtyJson(s4Code);
         let targetBlock = phase2Json.refactor_guide.find(
             item => item.action_type === "CREATE_OBJECT"
         );
@@ -343,13 +343,13 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
             );
             issueLog = JSON.parse(resultMCP);
             let issueLogString = issueLog.result
-                                .map(item => `Line ${item.line}: ${item.text}`)
-                                .join('\n');
+                .map(item => `Line ${item.line}: ${item.text}`)
+                .join('\n');
             // Search any error
             issueLog.result = issueLog.result.filter(item => item.severity === "E");
-            if(issueLog.result.length === 0){ // No any error after active code
+            if (issueLog.result.length === 0) { // No any error after active code
                 // Push unit test to system
-                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
                     await createUnitText(
                         mcpClient,
                         objectName,
@@ -366,7 +366,7 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                     },
                     history: currentHistory
                 };
-            }else{
+            } else {
                 // Phase 3: Review and Correct (Iterative)
                 finalReviewReport = '{ "review_phase": [ ';
                 let reviewIteration = 0;
@@ -375,9 +375,9 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                     try {
                         console.log(`Starting Code Review Iteration ${reviewIteration + 1}...`);
                         let s4CodeReview = await reviewAndCorrectCode(issueLogString, r3SourceCode, historyID);
-                        if(!s4CodeReview){
+                        if (!s4CodeReview) {
                             // Push unit test to system
-                            if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+                            if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
                                 await createUnitText(
                                     mcpClient,
                                     objectName,
@@ -395,9 +395,9 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                                 history: currentHistory
                             };
                         }
-                        let reviewJson = parseDirtyJson(s4CodeReview); 
-                        let reviewJsonString = JSON.stringify(reviewJson, null, 2); 
-                        if(reviewIteration === 0){
+                        let reviewJson = parseDirtyJson(s4CodeReview);
+                        let reviewJsonString = JSON.stringify(reviewJson, null, 2);
+                        if (reviewIteration === 0) {
                             finalReviewReport += reviewJsonString;
                         } else finalReviewReport += ', ' + reviewJsonString;
 
@@ -414,15 +414,15 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                             issueLog = JSON.parse(resultMCP);
                             // Search any error again
                             issueLog.result = issueLog.result.filter(item => item.severity === "E");
-                            if(issueLog.result.length === 0){
+                            if (issueLog.result.length === 0) {
                                 console.log("Code approved by reviewer. Exiting review loop.");
 
-                                if(finalReviewReport){
+                                if (finalReviewReport) {
                                     finalReviewReport += "] }";
-                                }else finalReviewReport = "";
+                                } else finalReviewReport = "";
 
                                 // Push unit test to system
-                                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+                                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
                                     await createUnitText(
                                         mcpClient,
                                         objectName,
@@ -439,11 +439,11 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                                     },
                                     history: currentHistory
                                 };
-                            }else{
+                            } else {
                                 reviewIteration++;
                             }
                         }
-                    }catch (error){
+                    } catch (error) {
                         console.error(`Code review error: ${error.message}`);
                         break;
                     }
@@ -451,12 +451,12 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
             }
         }
 
-        if(finalReviewReport){
+        if (finalReviewReport) {
             finalReviewReport += "] }";
-        }else finalReviewReport = "";
+        } else finalReviewReport = "";
 
         // Push unit test code to S4 system
-        if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet){
+        if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
             await createUnitText(
                 mcpClient,
                 objectName,
@@ -476,7 +476,7 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
         };
     } catch (error) {
         console.error(`Error in R3 to S4 conversion workflow: ${error.message}`);
-        currentHistory.push({"role": "assistant", "content": `Error during conversion: ${error.message}`});
+        currentHistory.push({ "role": "assistant", "content": `Error during conversion: ${error.message}` });
         return { error: { message: `R3 to S4 conversion workflow failed: ${error.message}` }, history: currentHistory };
     }
 }

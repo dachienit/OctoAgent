@@ -9,6 +9,7 @@
   "type": "module",
   "scripts": {
     "start": "node ./bin/server.js",
+    "build": "node ./scripts/build.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "engines": {
@@ -41,5 +42,9 @@
     "type": "git",
     "url": "https://github.boschdevcloud.com/LHA2HC/code-refactor.git"
   },
-  "keywords": []
+  "keywords": [],
+  "devDependencies": {
+    "esbuild": "^0.27.0",
+    "pkg": "^5.8.1"
+  }
 }
