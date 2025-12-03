@@ -7,10 +7,10 @@ const defaultEnv = {
   customPrompt: "",
 };
 
-// Biến toàn cục để lưu settings, có thể truy cập từ bất kỳ đâu
+// Global variable to store settings, accessible from anywhere
 let globalSettings = { ...defaultEnv };
 
-// Gán vào window để có thể truy cập từ console hoặc các script khác
+// Assign to window to be accessible from console or other scripts
 if (typeof window !== 'undefined') {
   window.globalSettings = globalSettings;
 }
@@ -25,12 +25,12 @@ function escapeHtml(str) {
 }
 
 function renderBotText(text) {
-  // Parse toàn bộ message, chỉ phần nằm trong <abap>...</abap> mới vào khung sửa,
-  // còn lại hiển thị text bình thường.
+  // Parse the entire message, only the part within <abap>...</abap> enters the edit frame,
+  // the rest displays normal text.
   const startTag = "<abap>";
   const endTag = "</abap>";
 
-  // Nếu KHÔNG có <abap> → parse Markdown bằng marked
+  // If NO <abap> -> parse Markdown using marked
   if (!text.includes(startTag)) {
     return marked.parse(text);
   }
@@ -55,7 +55,7 @@ function renderBotText(text) {
 
     const end = text.indexOf(endTag, start + startTag.length);
     if (end === -1) {
-      // Không tìm thấy thẻ đóng, coi phần còn lại là text thường
+      // Closing tag not found, treat the rest as normal text
       const rest = text.slice(start);
       if (rest.trim()) {
         html += `<p>${escapeHtml(rest).replace(/\n/g, "<br>")}</p>`;
@@ -83,7 +83,7 @@ function renderBotText(text) {
   }
 
   if (!html) {
-    // Không có <abap> thì hiện thường
+    // If no <abap> then show normally
     return escapeHtml(text).replace(/\n/g, "<br>");
   }
 
@@ -124,19 +124,19 @@ function loadEnv() {
 
 function saveEnv(env) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(env));
-  // Cập nhật biến toàn cục
+  // Update global variable
   globalSettings = { ...env };
-  // Cập nhật window object nếu có
+  // Update window object if available
   if (typeof window !== 'undefined') {
     window.globalSettings = globalSettings;
   }
 }
 
-// Biến để cache Windows username
+// Variable to cache Windows username
 let cachedWindowsUsername = null;
 
 async function getWindowsNtid() {
-  // Nếu đã có cache, trả về ngay
+  // If cached, return immediately
   if (cachedWindowsUsername) {
     console.log('[getWindowsNtid] Using cached username:', cachedWindowsUsername);
     return cachedWindowsUsername;
@@ -144,7 +144,7 @@ async function getWindowsNtid() {
 
   try {
     console.log('[getWindowsNtid] Fetching username from API...');
-    // Gọi API từ server để lấy Windows username
+    // Call API from server to get Windows username
     const response = await fetch('/api/userinfo');
     if (response.ok) {
       const data = await response.json();
@@ -161,7 +161,7 @@ async function getWindowsNtid() {
     console.error('[getWindowsNtid] Error fetching Windows username:', error);
   }
 
-  // Fallback: thử lấy từ path
+  // Fallback: try getting from path
   try {
     const path = window.location.pathname || "";
     const match = path.match(/[/\\]Users[/\\]([^/\\]+)/i);
@@ -180,7 +180,7 @@ async function getWindowsNtid() {
 }
 
 function formatTime(date = new Date()) {
-  return date.toLocaleTimeString("vi-VN", {
+  return date.toLocaleTimeString("en-US", {
     hour: "2-digit",
     minute: "2-digit",
   });
@@ -193,7 +193,7 @@ function createMessageElement({ role, text, env, time }) {
   const meta = document.createElement("div");
   meta.className = "message-meta";
   // Use NTID if available for user, otherwise default to "Bạn"
-  const who = role === "user" ? (env && env.ntid ? env.ntid : "Bạn") : "Octo Agent";
+  const who = role === "user" ? (env && env.ntid ? env.ntid : "You") : "Octo Agent";
   meta.innerHTML = `<span>${who}</span><span>${time || formatTime()}</span>`;
 
   const content = document.createElement("div");
@@ -306,18 +306,18 @@ document.addEventListener("DOMContentLoaded", () => {
     leftSidebar.classList.toggle("collapsed");
     const isCollapsed = leftSidebar.classList.contains("collapsed");
     leftSidebarToggle.textContent = isCollapsed ? "▶" : "◀";
-    leftSidebarToggle.title = isCollapsed ? "Mở sidebar trái" : "Thu sidebar trái";
+    leftSidebarToggle.title = isCollapsed ? "Open left sidebar" : "Collapse left sidebar";
   });
 
   rightSidebarToggle.addEventListener("click", () => {
     rightSidebar.classList.toggle("collapsed");
     const isCollapsed = rightSidebar.classList.contains("collapsed");
     rightSidebarToggle.textContent = isCollapsed ? "◀" : "▶";
-    rightSidebarToggle.title = isCollapsed ? "Mở sidebar phải" : "Thu sidebar phải";
+    rightSidebarToggle.title = isCollapsed ? "Open right sidebar" : "Collapse right sidebar";
   });
 
   // Set initial state - both sidebars collapsed by default
-  // Đảm bảo cả 2 sidebar đều collapsed khi load
+  // Ensure both sidebars are collapsed on load
   if (!leftSidebar.classList.contains("collapsed")) {
     leftSidebar.classList.add("collapsed");
   }
@@ -326,8 +326,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
   leftSidebarToggle.textContent = "▶";
   rightSidebarToggle.textContent = "◀";
-  leftSidebarToggle.title = "Mở sidebar trái";
-  rightSidebarToggle.title = "Mở sidebar phải";
+  leftSidebarToggle.title = "Open left sidebar";
+  rightSidebarToggle.title = "Open right sidebar";
 
   // Recent Chats toggle
   recentChatsToggle.addEventListener("click", () => {
@@ -395,7 +395,7 @@ document.addEventListener("DOMContentLoaded", () => {
   envBrainId.value = currentEnv.brainId || "";
   envCustomPrompt.value = currentEnv.customPrompt || "";
 
-  // Tự động lấy Windows username và điền vào NTID
+  // Automatically get Windows username and fill in NTID
   (async () => {
     console.log('[DOMContentLoaded] Loading NTID...');
     console.log('[DOMContentLoaded] Current env ntid:', currentEnv.ntid);
@@ -404,7 +404,7 @@ document.addEventListener("DOMContentLoaded", () => {
     console.log('[DOMContentLoaded] Got default NTID:', defaultNtid);
 
     if (defaultNtid) {
-      // Nếu có NTID từ Windows và chưa có trong env, hoặc env trống
+      // If NTID from Windows exists and is not in env, or env is empty
       if (!currentEnv.ntid || currentEnv.ntid === "") {
         console.log('[DOMContentLoaded] Setting NTID to:', defaultNtid);
         envNtid.value = defaultNtid;
@@ -412,16 +412,16 @@ document.addEventListener("DOMContentLoaded", () => {
         const updatedEnv = { ...currentEnv, ntid: defaultNtid };
         saveEnv(updatedEnv);
       } else {
-        // Nếu đã có trong env, dùng giá trị đã lưu
+        // If already in env, use saved value
         console.log('[DOMContentLoaded] Using saved NTID:', currentEnv.ntid);
         envNtid.value = currentEnv.ntid;
       }
     } else if (currentEnv.ntid) {
-      // Nếu không lấy được từ Windows nhưng có trong env
+      // If cannot get from Windows but exists in env
       console.log('[DOMContentLoaded] Using saved NTID (no Windows username):', currentEnv.ntid);
       envNtid.value = currentEnv.ntid;
     } else {
-      // Không có gì cả
+      // Nothing available
       console.warn('[DOMContentLoaded] No NTID available');
       envNtid.value = "";
     }
@@ -430,7 +430,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   saveSettingsBtn.addEventListener("click", async () => {
     let ntidValue = envNtid.value.trim();
-    // Nếu NTID trống, tự động lấy từ Windows
+    // If NTID is empty, automatically get from Windows
     if (!ntidValue) {
       ntidValue = await getWindowsNtid() || defaultEnv.ntid;
       envNtid.value = ntidValue;
@@ -443,9 +443,9 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     saveEnv(newEnv);
     // simple visual feedback
-    saveSettingsBtn.textContent = "Đã lưu ✓";
+    saveSettingsBtn.textContent = "Saved ✓";
     setTimeout(() => {
-      saveSettingsBtn.textContent = "Lưu cấu hình";
+      saveSettingsBtn.textContent = "Save Settings";
     }, 1200);
   });
 
@@ -717,7 +717,7 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (err) {
       const errMsgEl = createMessageElement({
         role: "bot",
-        text: "Có lỗi khi gửi tin nhắn. Vui lòng kiểm tra lại cấu hình ENV hoặc console.",
+        text: "Error sending message. Please check ENV configuration or console.",
       });
       messages.appendChild(errMsgEl);
       scrollToBottom();
@@ -732,7 +732,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Gợi ý lệnh @phân tích, @sữa mã, @review
+  // Suggest commands @analyze, @fix code, @review
   userInput.addEventListener("input", () => {
     maybeToggleCommandMenu();
   });
@@ -745,7 +745,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Escape") {
       hideCommandMenu();
     }
-    // sau một tick mới đọc được selectionStart mới
+    // read new selectionStart after a tick
     setTimeout(() => maybeToggleCommandMenu(), 0);
   });
 
@@ -778,7 +778,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Lắng nghe nút Apply trong block code bot trả về
+  // Listen to Apply button in bot code block
   messages.addEventListener("click", (e) => {
     const target = e.target;
     if (!(target instanceof HTMLElement)) return;

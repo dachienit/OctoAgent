@@ -175,8 +175,8 @@ async function callLLM(systemMessage, userMessage, historyID) {
  * @returns {Promise<string>} - The response message.
  */
 export async function ask(userMessage, env) {
-    // Return "bạn vừa nhập" + the user's input
-    //return `bạn vừa nhập ${userMessage}`;
+    // Return "you just typed" + the user's input
+    //return `you just typed ${userMessage}`;
 
     // Create chat history
     //const historyID = await createHistory();

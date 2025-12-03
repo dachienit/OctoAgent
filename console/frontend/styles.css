@@ -60,7 +60,7 @@ body {
   overflow: hidden;
 }
 
-/* Đảm bảo toggle button luôn hiển thị ngay cả khi sidebar collapsed */
+/* Ensure toggle button always shows even when sidebar collapsed */
 .sidebar.collapsed .sidebar-toggle {
   pointer-events: auto;
   opacity: 1;
@@ -118,7 +118,7 @@ body {
   border-radius: 0 8px 8px 0;
 }
 
-/* Khi sidebar trái collapsed, toggle button ở vị trí edge (left: 0) */
+/* When left sidebar collapsed, toggle button at edge (left: 0) */
 .sidebar-left.collapsed .sidebar-toggle-left {
   right: auto;
   left: 0;
@@ -136,7 +136,7 @@ body {
   box-shadow: -1px 0 6px rgba(0, 0, 0, 0.15);
 }
 
-/* Khi sidebar phải collapsed, toggle button ở vị trí edge (right: 0) */
+/* When right sidebar collapsed, toggle button at edge (right: 0) */
 .sidebar-right.collapsed .sidebar-toggle-right {
   left: auto;
   right: 0;
