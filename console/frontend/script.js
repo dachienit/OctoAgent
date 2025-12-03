@@ -1,8 +1,6 @@
 const STORAGE_KEY = "chatbox_env_settings_v1";
 
 const defaultEnv = {
-  clientSecret: "",
-  brainId: "",
   ntid: "",
   customPrompt: "",
 };
@@ -104,8 +102,7 @@ function loadEnv() {
     const parsed = JSON.parse(raw);
     // Merge parsed with defaultEnv, but if parsed has empty strings for keys that have defaults, use defaults
     const env = { ...defaultEnv, ...parsed };
-    if (!env.clientSecret) env.clientSecret = defaultEnv.clientSecret;
-    if (!env.brainId) env.brainId = defaultEnv.brainId;
+
 
     globalSettings = env;
     if (typeof window !== 'undefined') {
@@ -226,8 +223,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const settingsPanel = document.getElementById("settingsPanel");
   const saveSettingsBtn = document.getElementById("saveSettings");
   const resetSettingsBtn = document.getElementById("resetSettings");
-  const envClientSecret = document.getElementById("envClientSecret");
-  const envBrainId = document.getElementById("envBrainId");
+
   const envNtid = document.getElementById("envNtid");
   const envCustomPrompt = document.getElementById("envCustomPrompt");
 
@@ -391,8 +387,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Load env on start
   const currentEnv = loadEnv();
-  envClientSecret.value = currentEnv.clientSecret || "";
-  envBrainId.value = currentEnv.brainId || "";
+
   envCustomPrompt.value = currentEnv.customPrompt || "";
 
   // Automatically get Windows username and fill in NTID
@@ -436,8 +431,7 @@ document.addEventListener("DOMContentLoaded", () => {
       envNtid.value = ntidValue;
     }
     const newEnv = {
-      clientSecret: envClientSecret.value.trim(),
-      brainId: envBrainId.value.trim(),
+
       ntid: ntidValue,
       customPrompt: envCustomPrompt.value.trim(),
     };
@@ -450,8 +444,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   resetSettingsBtn.addEventListener("click", async () => {
-    envClientSecret.value = "";
-    envBrainId.value = "";
+
     envCustomPrompt.value = "";
     const defaultNtid = await getWindowsNtid();
     envNtid.value = defaultNtid;

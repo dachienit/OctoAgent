@@ -28,6 +28,25 @@
     border-color: #6366f1;
 }
 
+/* Select styling for Skill (match textarea/input) */
+.field select {
+    border-radius: 10px;
+    border: 1px solid rgba(209, 213, 219, 0.9);
+    padding: 10px 12px;
+    background: #ffffff;
+    color: #111827;
+    font-size: 13px;
+    font-family: inherit;
+    transition: all 0.2s ease;
+    width: 100%;
+}
+
+.field select:focus {
+    outline: 2px solid rgba(79, 70, 229, 0.5);
+    outline-offset: 0;
+    border-color: #6366f1;
+}
+
 /* Expand button - plain text, right-aligned */
 .btn-expand-prompt {
     margin-top: 8px;
@@ -46,6 +65,24 @@
     color: #4f46e5;
 }
 
+/* Edit Skill button - match Expand button */
+.btn-edit-skill {
+    margin-top: 8px;
+    padding: 0;
+    font-size: 12px;
+    background: transparent;
+    color: #6b7280;
+    border: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    align-self: flex-end;
+    text-decoration: none;
+}
+
+.btn-edit-skill:hover {
+    color: #4f46e5;
+}
+
 /* Modal overlay */
 .prompt-modal {
     position: fixed;
@@ -53,19 +90,72 @@
     left: 0;
     right: 0;
     bottom: 0;
-    background: rgba(0, 0, 0, 0.5);
+    background: rgba(0, 0, 0, 0.6);
     display: flex;
+    align-items: center;
+    /* Center vertically */
+    justify-content: center;
+    /* Center horizontally */
+    color: #111827;
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+}
+
+.prompt-modal.hidden {
+    display: none;
+}
+
+/* Modal Content Box */
+.prompt-modal-content {
+    background: #ffffff;
+    width: 90%;
+    max-width: 600px;
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    overflow: hidden;
+    animation: modalPop 0.2s ease-out;
+}
+
+@keyframes modalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+/* Modal Header */
+.prompt-modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e5e7eb;
+    background: #f9fafb;
+}
+
+.prompt-modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
     color: #111827;
 }
 
 .btn-close-modal {
     background: transparent;
     border: none;
-    font-size: 24px;
+    font-size: 20px;
     color: #6b7280;
     cursor: pointer;
-    width: 32px;
-    height: 32px;
+    width: 28px;
+    height: 28px;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -74,12 +164,35 @@
 }
 
 .btn-close-modal:hover {
-    background: #f3f4f6;
+    background: #e5e7eb;
     color: #111827;
 }
 
+/* Modal Body */
 .prompt-modal-body {
+    padding: 20px;
     flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+}
+
+.prompt-modal-body textarea {
+    width: 100%;
+    min-height: 200px;
+    padding: 12px;
+    border-radius: 8px;
+    border: 1px solid #d1d5db;
+    font-family: inherit;
+    font-size: 14px;
+    line-height: 1.5;
+    resize: vertical;
+    color: #111827;
+}
+
+.prompt-modal-body textarea:focus {
+    outline: 2px solid rgba(79, 70, 229, 0.5);
+    border-color: #6366f1;
 }
 
 .char-counter {
@@ -89,12 +202,14 @@
     text-align: right;
 }
 
+/* Modal Footer */
 .prompt-modal-footer {
-    padding-top: 20px;
-    border-top: 1px solid rgba(209, 213, 219, 0.9);
+    padding: 16px 20px;
+    border-top: 1px solid #e5e7eb;
     display: flex;
     gap: 12px;
     justify-content: flex-end;
+    background: #f9fafb;
 }
 
 /* New Chat button overrides */

@@ -106,32 +106,22 @@
 
         <section id="settingsPanel" class="settings-panel">
           <div class="settings-grid">
-            <label class="field hidden">
-              <span>Client Secret</span>
-              <input id="envClientSecret" type="password" placeholder="Input Client Secret" />
-            </label>
-            <label class="field">
-              <span>Brain ID</span>
-              <input id="envBrainId" type="text" placeholder="Input Brain ID" value="e39Lh3w2teng" />
-            </label>
             <label class="field">
               <span>NTID</span>
               <input id="envNtid" type="text" placeholder="NTID" readonly />
             </label>
             <label class="field">
               <span>Skill</span>
-              <div class="skill-selector">
-                <select id="envSkill" class="skill-dropdown">
-                  <option value="" disabled selected>Select a skill...</option>
-                </select>
-                <button type="button" id="editSkillBtn" class="btn-edit-skill">Edit</button>
-              </div>
+              <select id="envSkill" class="skill-dropdown">
+                <option value="" disabled selected>Select a skill...</option>
+              </select>
+              <button type="button" id="editSkillBtn" class="btn-edit-skill">Edit</button>
             </label>
             <label class="field">
               <span>Custom Prompt</span>
               <textarea id="envCustomPrompt" maxlength="2000" rows="4"
                 placeholder="Input custom prompt (Max 2000 characters)"></textarea>
-              <button type="button" id="expandPromptBtn" class="btn-expand-prompt">Input</button>
+              <button type="button" id="expandPromptBtn" class="btn-expand-prompt">Edit</button>
             </label>
           </div>
           <div class="settings-actions">
