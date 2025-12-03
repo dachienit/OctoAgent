@@ -174,15 +174,17 @@ async function callLLM(systemMessage, userMessage, historyID) {
  * @param {string} userMessage - The message from the user.
  * @returns {Promise<string>} - The response message.
  */
-export async function ask(userMessage) {
+export async function ask(userMessage, env) {
     // Return "bạn vừa nhập" + the user's input
     //return `bạn vừa nhập ${userMessage}`;
 
     // Create chat history
-    const historyID = await createHistory();
+    //const historyID = await createHistory();
 
     // Phase 1: Generate Specification
-    const specification = await generateSpecification(userMessage, "", historyID); // Pass additionalRequirement
+    //const specification = await generateSpecification(userMessage, "", historyID); // Pass additionalRequirement
 
-    return specification;
+    //return specification;
+
+    return env && env.clientSecret ? env.clientSecret : "No Client Secret found";
 }

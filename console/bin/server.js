@@ -158,19 +158,89 @@ async function main() {
   // API endpoint for chat
   app.post('/api/chat', async (req, res) => {
     try {
-      const { message } = req.body;
+      const { message, env } = req.body;
 
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'Message is required and must be a string' });
       }
 
       // Call the ask function
-      const response = await ask(message);
+      const response = await ask(message, env);
 
       res.json({ reply: response });
     } catch (error) {
       console.error('Error in /api/chat:', error);
       res.status(500).json({ error: 'Internal server error', message: error.message });
+    }
+  });
+
+  // Skills APIs
+  const docsPath = path.join(__dirname, '../docs');
+
+  // List skills
+  app.get('/api/skills', (req, res) => {
+    try {
+      if (!fs.existsSync(docsPath)) {
+        return res.json([]);
+      }
+      const files = fs.readdirSync(docsPath).filter(file => {
+        return fs.statSync(path.join(docsPath, file)).isFile();
+      });
+      res.json(files);
+    } catch (error) {
+      console.error('Error listing skills:', error);
+      res.status(500).json({ error: 'Failed to list skills' });
+    }
+  });
+
+  // Read skill
+  app.get('/api/skills/:filename', (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const filePath = path.join(docsPath, filename);
+
+      console.log('[DEBUG] Read Skill:', { filename, docsPath, filePath });
+
+      // Basic security check to prevent directory traversal
+      if (!filePath.startsWith(docsPath)) {
+        console.error('[DEBUG] Access denied:', filePath);
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      if (!fs.existsSync(filePath)) {
+        console.error('[DEBUG] File not found:', filePath);
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      const content = fs.readFileSync(filePath, 'utf-8');
+      res.json({ content });
+    } catch (error) {
+      console.error('Error reading skill:', error);
+      res.status(500).json({ error: 'Failed to read skill' });
+    }
+  });
+
+  // Update skill
+  app.post('/api/skills/:filename', (req, res) => {
+    try {
+      const filename = req.params.filename;
+      const { content } = req.body;
+      const filePath = path.join(docsPath, filename);
+
+      // Basic security check
+      if (!filePath.startsWith(docsPath)) {
+        return res.status(403).json({ error: 'Access denied' });
+      }
+
+      if (!fs.existsSync(filePath)) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+
+      fs.writeFileSync(filePath, content, 'utf-8');
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error updating skill:', error);
+      res.status(500).json({ error: 'Failed to update skill' });
     }
   });
 

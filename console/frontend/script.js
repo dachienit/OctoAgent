@@ -102,7 +102,11 @@ function loadEnv() {
       return env;
     }
     const parsed = JSON.parse(raw);
+    // Merge parsed with defaultEnv, but if parsed has empty strings for keys that have defaults, use defaults
     const env = { ...defaultEnv, ...parsed };
+    if (!env.clientSecret) env.clientSecret = defaultEnv.clientSecret;
+    if (!env.brainId) env.brainId = defaultEnv.brainId;
+
     globalSettings = env;
     if (typeof window !== 'undefined') {
       window.globalSettings = globalSettings;
@@ -243,6 +247,59 @@ document.addEventListener("DOMContentLoaded", () => {
   const applyPromptBtn = document.getElementById("applyPromptBtn");
   const cancelPromptBtn = document.getElementById("cancelPromptBtn");
   const charCount = document.getElementById("charCount");
+
+  // File Attachment elements
+  const fileInput = document.getElementById("fileInput");
+  const attachBtn = document.getElementById("attachBtn");
+  const attachmentPreview = document.getElementById("attachmentPreview");
+  const attachmentName = document.getElementById("attachmentName");
+  const removeAttachmentBtn = document.getElementById("removeAttachmentBtn");
+
+  // Auto-resize textarea
+  const autoResize = () => {
+    userInput.style.height = 'auto';
+    userInput.style.height = userInput.scrollHeight + 'px';
+  };
+
+  userInput.addEventListener('input', autoResize);
+
+  let currentAttachmentFile = null;
+
+  // Handle Attachment Button Click
+  if (attachBtn && fileInput) {
+    attachBtn.addEventListener("click", () => {
+      fileInput.click();
+    });
+
+    fileInput.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      currentAttachmentFile = file;
+      if (attachmentName) {
+        attachmentName.textContent = file.name;
+      }
+      if (attachmentPreview) {
+        attachmentPreview.classList.remove("hidden");
+      }
+
+      // Reset file input so the same file can be selected again if needed
+      fileInput.value = "";
+
+      // Focus back to input
+      userInput.focus();
+    });
+  }
+
+  // Handle Remove Attachment
+  if (removeAttachmentBtn) {
+    removeAttachmentBtn.addEventListener("click", () => {
+      currentAttachmentFile = null;
+      if (attachmentPreview) {
+        attachmentPreview.classList.add("hidden");
+      }
+    });
+  }
 
   // Sidebar toggle functions
   leftSidebarToggle.addEventListener("click", () => {
@@ -456,6 +513,108 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // Skill Editor Logic
+  const envSkill = document.getElementById("envSkill");
+  const editSkillBtn = document.getElementById("editSkillBtn");
+  const skillModal = document.getElementById("skillModal");
+  const skillModalTitle = document.getElementById("skillModalTitle");
+  const modalSkillContent = document.getElementById("modalSkillContent");
+  const closeSkillModal = document.getElementById("closeSkillModal");
+  const saveSkillBtn = document.getElementById("saveSkillBtn");
+  const cancelSkillBtn = document.getElementById("cancelSkillBtn");
+
+  // Load skills
+  async function loadSkills() {
+    try {
+      const response = await fetch('/api/skills');
+      if (response.ok) {
+        const files = await response.json();
+        // Keep selected value if possible
+        const currentVal = envSkill.value;
+        envSkill.innerHTML = '<option value="" disabled selected>Select a skill...</option>';
+        files.forEach(file => {
+          const option = document.createElement("option");
+          option.value = file;
+          option.textContent = file;
+          envSkill.appendChild(option);
+        });
+        if (currentVal && files.includes(currentVal)) {
+          envSkill.value = currentVal;
+        }
+      }
+    } catch (error) {
+      console.error('Error loading skills:', error);
+    }
+  }
+
+  // Initial load
+  loadSkills();
+
+  // Handle Edit Skill
+  if (editSkillBtn && envSkill) {
+    editSkillBtn.addEventListener("click", async () => {
+      const filename = envSkill.value;
+      if (!filename) {
+        alert("Please select a skill to edit");
+        return;
+      }
+
+      try {
+        console.log('[DEBUG] Fetching skill:', filename);
+        const response = await fetch(`/api/skills/${encodeURIComponent(filename)}`);
+        if (response.ok) {
+          const data = await response.json();
+          modalSkillContent.value = data.content;
+          skillModalTitle.textContent = `Edit Skill: ${filename}`;
+          skillModal.classList.remove("hidden");
+        } else {
+          const errText = await response.text();
+          console.error('[DEBUG] Failed to load skill:', response.status, errText);
+          alert(`Failed to load skill content: ${response.status} ${response.statusText}`);
+        }
+      } catch (error) {
+        console.error('Error loading skill content:', error);
+        alert(`Error loading skill content: ${error.message}`);
+      }
+    });
+  }
+
+  // Close Skill Modal
+  const closeSkillEditor = () => {
+    skillModal.classList.add("hidden");
+  };
+
+  if (closeSkillModal) closeSkillModal.addEventListener("click", closeSkillEditor);
+  if (cancelSkillBtn) cancelSkillBtn.addEventListener("click", closeSkillEditor);
+
+  // Save Skill
+  if (saveSkillBtn) {
+    saveSkillBtn.addEventListener("click", async () => {
+      const filename = envSkill.value;
+      const content = modalSkillContent.value;
+
+      try {
+        const response = await fetch(`/api/skills/${filename}`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ content }),
+        });
+
+        if (response.ok) {
+          alert("Skill saved successfully");
+          closeSkillEditor();
+        } else {
+          alert("Failed to save skill");
+        }
+      } catch (error) {
+        console.error('Error saving skill:', error);
+        alert("Error saving skill");
+      }
+    });
+  }
+
   function scrollToBottom() {
     messages.scrollTop = messages.scrollHeight;
   }
@@ -467,7 +626,7 @@ document.addEventListener("DOMContentLoaded", () => {
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageText }),
+        body: JSON.stringify({ message: messageText, env: env }),
       });
 
       if (!response.ok) {
@@ -485,19 +644,60 @@ document.addEventListener("DOMContentLoaded", () => {
 
   chatForm.addEventListener("submit", async (e) => {
     e.preventDefault();
-    const text = userInput.value.trim();
+    let text = userInput.value.trim();
+
+    // If there is an attachment, read it and append to text
+    if (currentAttachmentFile) {
+      try {
+        const fileContent = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (event) => resolve(event.target.result);
+          reader.onerror = (error) => reject(error);
+          reader.readAsText(currentAttachmentFile);
+        });
+
+        if (text) {
+          text += "\n";
+        }
+        text += `${fileContent}`;
+
+        // Clear attachment after reading
+        currentAttachmentFile = null;
+        if (attachmentPreview) {
+          attachmentPreview.classList.add("hidden");
+        }
+      } catch (err) {
+        console.error("Error reading file:", err);
+        alert("Error reading file attachment");
+        return;
+      }
+    }
+
     if (!text) return;
 
     const env = loadEnv();
 
+    // For display, we might want to show just the user input, or the full text?
+    // User requested: "gởi Hãy kiểm tra file: (xuống dòng) + content file được đính kèm lên vào userMessage của hàm ask"
+    // But for UI display, usually we show what user typed + maybe an indicator of file.
+    // Here I will show the full text being sent for clarity, or maybe just the user input?
+    // Let's show the full text as it's what's being sent.
+    // Actually, if the file is huge, showing it in chat might be bad.
+    // But the requirement says "gởi ... vào userMessage", which implies the backend receives it.
+    // The UI `createMessageElement` displays `text`.
+    // Let's display the full text for now to be safe, or maybe truncate it?
+    // Given the requirement is about what is SENT, I will send the combined text.
+    // For UI, I will display the combined text.
+
     const userMsgEl = createMessageElement({
       role: "user",
-      text,
+      text, // Displaying full text including file content
       env,
     });
     messages.appendChild(userMsgEl);
     scrollToBottom();
     userInput.value = "";
+    autoResize(); // Reset height
 
     submitBtn.disabled = true;
     submitBtn.style.opacity = "0.6";

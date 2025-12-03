@@ -58,7 +58,24 @@
         <div id="messages" class="messages"></div>
 
         <form id="chatForm" class="chat-input" autocomplete="off">
-          <textarea id="userInput" rows="2" placeholder="Send a message to brain 'ABAP'..."></textarea>
+          <input type="file" id="fileInput" accept=".txt,.abap" class="hidden" />
+
+          <div class="input-wrapper">
+            <div id="attachmentPreview" class="attachment-preview hidden">
+              <div class="attachment-chip">
+                <span class="attachment-icon">📄</span>
+                <span id="attachmentName" class="attachment-name">filename.txt</span>
+                <button type="button" id="removeAttachmentBtn" class="btn-remove-attachment">✕</button>
+              </div>
+            </div>
+
+            <textarea id="userInput" rows="1" placeholder="Send a message to brain 'ABAP'..."></textarea>
+
+            <button type="button" id="attachBtn" class="btn-attach" title="Attach file">
+              <span>+</span>
+            </button>
+          </div>
+
           <div id="commandMenu" class="command-menu hidden">
             <button type="button" class="command-item" data-command="phân tích">@phân tích</button>
             <button type="button" class="command-item" data-command="sữa mã">@sữa mã</button>
@@ -89,17 +106,26 @@
 
         <section id="settingsPanel" class="settings-panel">
           <div class="settings-grid">
-            <label class="field">
+            <label class="field hidden">
               <span>Client Secret</span>
               <input id="envClientSecret" type="password" placeholder="Input Client Secret" />
             </label>
             <label class="field">
               <span>Brain ID</span>
-              <input id="envBrainId" type="text" placeholder="Input Brain ID" />
+              <input id="envBrainId" type="text" placeholder="Input Brain ID" value="e39Lh3w2teng" />
             </label>
             <label class="field">
               <span>NTID</span>
-              <input id="envNtid" type="text" placeholder="NTID" />
+              <input id="envNtid" type="text" placeholder="NTID" readonly />
+            </label>
+            <label class="field">
+              <span>Skill</span>
+              <div class="skill-selector">
+                <select id="envSkill" class="skill-dropdown">
+                  <option value="" disabled selected>Select a skill...</option>
+                </select>
+                <button type="button" id="editSkillBtn" class="btn-edit-skill">Edit</button>
+              </div>
             </label>
             <label class="field">
               <span>Custom Prompt</span>
@@ -132,8 +158,25 @@
         </div>
       </div>
       <div class="prompt-modal-footer">
-        <button type="button" id="applyPromptBtn" class="btn-primary">Apply</button>
         <button type="button" id="cancelPromptBtn" class="btn-ghost">Cancel</button>
+        <button type="button" id="applyPromptBtn" class="btn-primary">Apply</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for editing Skill -->
+  <div id="skillModal" class="prompt-modal hidden">
+    <div class="prompt-modal-content">
+      <div class="prompt-modal-header">
+        <h3 id="skillModalTitle">Edit Skill</h3>
+        <button type="button" id="closeSkillModal" class="btn-close-modal">✕</button>
+      </div>
+      <div class="prompt-modal-body">
+        <textarea id="modalSkillContent" placeholder="Skill content..."></textarea>
+      </div>
+      <div class="prompt-modal-footer">
+        <button type="button" id="cancelSkillBtn" class="btn-ghost">Cancel</button>
+        <button type="button" id="saveSkillBtn" class="btn-primary">Save</button>
       </div>
     </div>
   </div>

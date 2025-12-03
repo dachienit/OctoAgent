@@ -55,39 +55,6 @@
     bottom: 0;
     background: rgba(0, 0, 0, 0.5);
     display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 1000;
-    backdrop-filter: blur(2px);
-}
-
-.prompt-modal.hidden {
-    display: none;
-}
-
-.prompt-modal-content {
-    background: white;
-    border-radius: 12px;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-    width: 90%;
-    max-width: 700px;
-    max-height: 80vh;
-    display: flex;
-    flex-direction: column;
-}
-
-.prompt-modal-header {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 20px;
-    border-bottom: 1px solid rgba(209, 213, 219, 0.9);
-}
-
-.prompt-modal-header h3 {
-    margin: 0;
-    font-size: 18px;
-    font-weight: 600;
     color: #111827;
 }
 
@@ -112,29 +79,7 @@
 }
 
 .prompt-modal-body {
-    padding: 20px;
     flex: 1;
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-}
-
-.prompt-modal-body textarea {
-    flex: 1;
-    border-radius: 10px;
-    border: 1px solid rgba(209, 213, 219, 0.9);
-    padding: 12px;
-    font-size: 14px;
-    font-family: inherit;
-    resize: none;
-    min-height: 300px;
-    transition: all 0.2s ease;
-}
-
-.prompt-modal-body textarea:focus {
-    outline: 2px solid rgba(79, 70, 229, 0.5);
-    outline-offset: 0;
-    border-color: #6366f1;
 }
 
 .char-counter {
@@ -145,7 +90,7 @@
 }
 
 .prompt-modal-footer {
-    padding: 20px;
+    padding-top: 20px;
     border-top: 1px solid rgba(209, 213, 219, 0.9);
     display: flex;
     gap: 12px;
