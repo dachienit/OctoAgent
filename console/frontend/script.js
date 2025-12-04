@@ -45,14 +45,14 @@ function renderBotText(text) {
     if (start === -1) {
       const rest = text.slice(cursor);
       if (rest.trim()) {
-        html += `<p>${escapeHtml(rest).replace(/\n/g, "<br>")}</p>`;
+        html += marked.parse(rest);
       }
       break;
     }
 
     const plainPart = text.slice(cursor, start);
     if (plainPart.trim()) {
-      html += `<p>${escapeHtml(plainPart).replace(/\n/g, "<br>")}</p>`;
+      html += marked.parse(plainPart);
     }
 
     const end = text.indexOf(endTag, start + startTag.length);
@@ -60,7 +60,7 @@ function renderBotText(text) {
       // Closing tag not found, treat the rest as normal text
       const rest = text.slice(start);
       if (rest.trim()) {
-        html += `<p>${escapeHtml(rest).replace(/\n/g, "<br>")}</p>`;
+        html += marked.parse(rest);
       }
       break;
     }
@@ -86,7 +86,7 @@ function renderBotText(text) {
 
   if (!html) {
     // If no <abap> then show normally
-    return escapeHtml(text).replace(/\n/g, "<br>");
+    return marked.parse(text);
   }
 
   return html;

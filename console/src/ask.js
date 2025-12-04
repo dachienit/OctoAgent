@@ -155,16 +155,50 @@ async function callLLM(systemMessage, userMessage, brainId) {
  * @param {string} userMessage - The message from the user.
  * @returns {Promise<string>} - The response message.
  */
+function parseDirtyJson(jsonString) {
+    try {
+        // Remove markdown code blocks if present
+        const cleanString = jsonString.replace(/```json/g, '').replace(/```/g, '').trim();
+        return JSON.parse(cleanString);
+    } catch (e) {
+        console.error("Error parsing JSON:", e);
+        return null;
+    }
+}
+
+function formatRefactorGuide(jsonData) {
+    if (!jsonData || !jsonData.refactor_guide) return "Error: Invalid JSON data";
+
+    let formattedOutput = "";
+
+    jsonData.refactor_guide.forEach(item => {
+        formattedOutput += `**title:** ${item.title}\n`;
+        formattedOutput += `**code_snippet:**\n`;
+        formattedOutput += `<abap>${item.code_snippet}</abap>\n\n`;
+    });
+
+    return formattedOutput;
+}
+
+/**
+ * Main function to handle user messages and return response.
+ * @param {string} userMessage - The message from the user.
+ * @returns {Promise<string>} - The response message.
+ */
 export async function ask(option, userMessage, env) {
-    let impGuideLine = '<b>Here is implementation guidelines:</b>\n abc\nbbb';
+    let impGuideLine = '**Here is implementation guidelines:**\n';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
     if (option === 'analyze') {
         return userMessage;
         //return await generateSpecification(userMessage, env.customPrompt || "", brainId);
     } else if (option === 'refactor') {
-        //const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
-        //const s4CodeJson = parseDirtyJson(s4Code);
-        return impGuideLine;
+        const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
+        const s4CodeJson = parseDirtyJson(s4Code);
+        if (s4CodeJson) {
+            return impGuideLine + formatRefactorGuide(s4CodeJson);
+        } else {
+            return "Error: Failed to parse refactor guide from LLM response.";
+        }
     } else {
         return userMessage;
         //return await chat(userMessage, env.customPrompt || "", brainId);
