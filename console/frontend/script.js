@@ -9,6 +9,9 @@ const defaultEnv = {
 // Global variable to store settings, accessible from anywhere
 let globalSettings = { ...defaultEnv };
 
+// Flag to track reload/new chat state
+let isReload = true;
+
 // Assign to window to be accessible from console or other scripts
 if (typeof window !== 'undefined') {
   window.globalSettings = globalSettings;
@@ -341,6 +344,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // New Chat button
   newChatBtn.addEventListener("click", () => {
+    // Set reload flag
+    isReload = true;
+
     // Clear messages
     messages.innerHTML = "";
     // Clear input
@@ -351,13 +357,14 @@ document.addEventListener("DOMContentLoaded", () => {
     // Reset Brain ID
     envBrainId.value = defaultEnv.brainId;
     globalSettings.brainId = defaultEnv.brainId;
+
     // Update active chat item
     document.querySelectorAll(".chat-item").forEach(item => {
       item.classList.remove("active");
     });
 
     // Refresh token
-    refreshToken();
+    //refreshToken();
 
     // You can add more logic here to create a new chat session
     console.log("New chat created");
@@ -408,6 +415,9 @@ document.addEventListener("DOMContentLoaded", () => {
   currentEnv.brainId = defaultEnv.brainId;
   envBrainId.value = defaultEnv.brainId;
 
+  // Save the reset state to ensure consistency
+  saveEnv(currentEnv);
+
   // Automatically get Windows username and fill in NTID
   (async () => {
     console.log('[DOMContentLoaded] Loading NTID...');
@@ -440,7 +450,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // Refresh token on load
-    refreshToken();
+    //refreshToken();
   })();
 
 
@@ -634,14 +644,14 @@ document.addEventListener("DOMContentLoaded", () => {
     messages.scrollTop = messages.scrollHeight;
   }
 
-  async function sendToApi(messageText, env) {
+  async function sendToApi(messageText, env, option = null, reLoad = false) {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageText, env: env }),
+        body: JSON.stringify({ message: messageText, env: env, option: option, reLoad: reLoad }),
       });
 
       if (!response.ok) {
@@ -705,7 +715,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (!text) return;
 
+    // Load env but override with current UI values to ensure WYSIWYG
     const env = loadEnv();
+    if (envBrainId) env.brainId = envBrainId.value.trim();
+    if (envCustomPrompt) env.customPrompt = envCustomPrompt.value.trim();
+    if (envNtid) env.ntid = envNtid.value.trim();
 
     // For display, we might want to show just the user input, or the full text?
     // User requested: "gởi Hãy kiểm tra file: (xuống dòng) + content file được đính kèm lên vào userMessage của hàm ask"
@@ -737,7 +751,22 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     try {
-      const reply = await sendToApi(text, env);
+      let option = null;
+      let messageToSend = text;
+
+      // Check for commands
+      const commandRegex = /^@(analyze|refactor|review)(\s+|$)(.*)/s;
+      const match = text.match(commandRegex);
+      if (match) {
+        option = match[1];
+        messageToSend = match[3] || ""; // The rest of the message
+      }
+
+      const reply = await sendToApi(messageToSend, env, option, isReload);
+
+      // Reset reload flag after sending
+      isReload = false;
+
       const botMsgEl = createMessageElement({
         role: "bot",
         text: reply,
@@ -762,7 +791,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 
-  // Suggest commands @analyze, @fix code, @review
+  // Suggest commands @analyze, @refactor, @review
   userInput.addEventListener("input", () => {
     maybeToggleCommandMenu();
   });
@@ -772,6 +801,12 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   userInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      submitBtn.click();
+      return;
+    }
+
     if (e.key === "Escape") {
       hideCommandMenu();
     }

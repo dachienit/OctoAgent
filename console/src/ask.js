@@ -48,8 +48,8 @@ function createHtmlReport(title, bodyContent) {
 </html>`;
 }
 
-async function createHistory() {
-    const url = process.env.DIA_HISTORY + "/" + process.env.BRAIN_ID
+async function createHistory(brainId) {
+    const url = process.env.DIA_HISTORY + "/" + (brainId || process.env.BRAIN_ID);
     try {
         const response = await fetch(url,
             {
@@ -78,48 +78,23 @@ async function createHistory() {
     }
 }
 
-async function generateSpecification(r3SourceCode, additionalRequirement = "", historyID) {
-    /*     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
-        const __dirname = dirname(__filename);
-        const filePath = path.join(
-            __dirname,
-            '..',
-            'docs',
-            'Decomposed AI Architecture.md'
-            //'S4_Refactor_Prompt.md'
-            //'testcase-prompt.md'
-        ); */
+async function generateSpecification(inputMessage, additionalRequirement = "", historyID, brainId) {
+    const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
+    const __dirname = dirname(__filename);
+    const filePath = path.join(__dirname, '..', 'docs', 'analysis.md');
+    const docsPath = path.join(__dirname, '..', 'docs', 'index.txt');
 
     try {
-        //let systemMessage = fs.readFile(filePath, 'utf8');
-        //systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
-        //systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
-        //const len = systemMessage.length;
-        const systemMessage = `You are an expert SAP ABAP consultant specializing in R3 to S4 HANA conversions.
-Your task is to analyze the provided R3 ABAP source code and generate a comprehensive
-technical specification for its equivalent functionality in S4 HANA (ABAP 7.5+).
-This specification will be used to guide the code conversion and review.
 
-The specification should include:
-1.  **Program Purpose:** R3 object type (PROG, INCLUDE, MODULE POOL, CLASS, FUNCTION MODULE, LOGIC CODE BLOCK ONLY). A clear, concise description of what the R3 program does.
-2.  **Input/Output Parameters:** Details of all selection screen fields, import/export parameters, internal tables, and their data types.
-3.  **Custom objects dependence:** All custom objects dependence and purpose, provide only a brief analysis and a reminder for the user to perform a manual check. Do not change or remove any code sections that call custom object dependencies, as this could seriously affect the results.
-4.  **Core Logic/Business Rules:** Step-by-step description of the program's main functionality, including calculations, data processing, and conditional logic.
-5.  **Data Objects & Interfaces:** Identify all tables, function modules, BAPIs, classes, or other SAP objects used in R3.
-6.  **Performance Considerations:** Any areas in R3 code that might be inefficient in S4 or opportunities for optimization (e.g., parallel processing, better data access patterns). Virtual Data Model: Prioritize using S/4HANA CDS views, APIs, or S/4 tables when querying data, and ensure all field names are accurate and not assumed.
-7.  **Error Handling:** How errors are currently handled and how they should be handled in S4. Use SAP S/4HANA standard objects for error handling whenever available. If no SAP S/4HANA standard objects are available, implement the error-handling logic directly in the S/4 refactored object. In this case, you may check sy-subrc after SELECT or other statements as needed. Do NOT create new custom error-handling objects.
-8.  **ABAP 7.5+ Specifics:** Highlight any areas where new ABAP 7.5+ syntax or features (e.g., inline declarations, new OPEN SQL, ABAP Objects, CDS views) can be leveraged for cleaner, more efficient S4 code.
-9.  **Assumptions/Notes:** Any necessary assumptions made during the analysis or important notes for the S4 developer, and propose their S4 HANA equivalents ABAP OO COMPLIANCE (OO IS MANDATORY) (e.g., replaced FMs by CLASS, new CDS views, simplified data models).
-
-**User-specified additional requirements for this conversion:**
-${additionalRequirement}
-Provide the specification in a structured, readable markdown format ONLY.
-        `;
+        let systemMessage = await fs.readFile(filePath, 'utf8');
+        let docs = await fs.readFile(docsPath, 'utf8');
+        systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
+        systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
         const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.\n
-                             Here is ABAP R3 source code: \n\`\`\`abap\n${r3SourceCode}\n\`\`\`
+                             ${inputMessage}
                             `;
         console.log("Generating S4 Specification...");
-        const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+        const { result, error } = await callLLM(systemMessage, userMessage, historyID, brainId);
         if (error) {
             throw new Error(`Failed to generate specification: ${error.message}`);
         }
@@ -129,11 +104,11 @@ Provide the specification in a structured, readable markdown format ONLY.
     }
 }
 
-async function callLLM(systemMessage, userMessage, historyID) {
+async function callLLM(systemMessage, userMessage, historyID, brainId) {
     const body = {
         prompt: userMessage,
         customMessageBehaviour: systemMessage,
-        knowledgeBaseId: process.env.BRAIN_ID,
+        knowledgeBaseId: brainId || process.env.BRAIN_ID,
         chatHistoryId: historyID,
         useGptKnowledge: true
     };
@@ -174,18 +149,16 @@ async function callLLM(systemMessage, userMessage, historyID) {
  * @param {string} userMessage - The message from the user.
  * @returns {Promise<string>} - The response message.
  */
-export async function ask(userMessage, env) {
-    // Return "you just typed" + the user's input
-    //return `you just typed ${userMessage}`;
+export async function ask(option, userMessage, env) {
+    const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
 
-    // Create chat history
-    //const historyID = await createHistory();
+    /*     if (option === 'analyze') {
+            //const historyID = await createHistory(brainId);
+            if (historyID && historyID.error) {
+                return historyID.error.message;
+            }
+            return await generateSpecification(userMessage, env.customPrompt || "", historyID, brainId);
+        } */
 
-    // Phase 1: Generate Specification
-    //const specification = await generateSpecification(userMessage, "", historyID); // Pass additionalRequirement
-
-    //return specification;
-
-    //return env && env.customPrompt ? env.customPrompt : "No Client Secret found";
-    return token.accessToken;
+    return `Echo: ${userMessage}`;
 }
