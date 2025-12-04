@@ -56,7 +56,7 @@ async function chat(inputMessage, additionalRequirement = "", brainId) {
         }
         return result;
     } catch (err) {
-    console.error('Error:', err);
+        console.error('Error:', err);
     }
 }
 
@@ -94,17 +94,17 @@ async function convertCodeToS4(inputMessage, additionalRequirement = "", brainId
         console.log("Converting R3 Code to S4...");
         try {
             const { result, error } = await callLLM(systemMessage, userMessage, brainId);
-        if (error) {
-            throw new Error(`Failed to convert code: ${error.message}`);
+            if (error) {
+                throw new Error(`Failed to convert code: ${error.message}`);
+            }
+            if (result) {
+                return result;
+            } else {
+                return '';
+            }
+        } catch (err) {
+            console.error('Error:', err);
         }
-        if (result) {
-            return result;
-        } else {
-            return '';
-        }
-    } catch (err) {
-        console.error('Error:', err);
-    }
     } catch (err) {
         console.error('Error:', err);
     }
@@ -159,12 +159,14 @@ export async function ask(option, userMessage, env) {
     let impGuideLine = '<b>Here is implementation guidelines:\n</b> abc';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
     if (option === 'analyze') {
-        return await generateSpecification(userMessage, env.customPrompt || "", brainId);
-    }else if(option === 'refactor'){
+        return userMessage;
+        //return await generateSpecification(userMessage, env.customPrompt || "", brainId);
+    } else if (option === 'refactor') {
         //const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
         //const s4CodeJson = parseDirtyJson(s4Code);
         return impGuideLine;
-    }else{
-        return await chat(userMessage, env.customPrompt || "", brainId);
+    } else {
+        return userMessage;
+        //return await chat(userMessage, env.customPrompt || "", brainId);
     }
 }
