@@ -48,53 +48,32 @@ function createHtmlReport(title, bodyContent) {
 </html>`;
 }
 
-async function createHistory(brainId) {
-    const url = process.env.DIA_HISTORY + "/" + (brainId || process.env.BRAIN_ID);
+async function chat(inputMessage, additionalRequirement = "", brainId) {
     try {
-        const response = await fetch(url,
-            {
-                method: "POST",
-                headers: {
-                    "Authorization": `Bearer ${token.accessToken}`,
-                },
-            }
-        );
-
-        if (response.status === 200) {
-            const historyId = await response.text();
-            if (historyId) {
-                return historyId;
-            } else {
-                return { error: { message: "LLM response was empty or malformed." } };
-            }
-        } else {
-            const errorText = await response.text();
-            console.error(`LLM API Error ${response.status}: ${errorText}`);
-            return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
+        const { result, error } = await callLLM(additionalRequirement, inputMessage, brainId);
+        if (error) {
+            throw new Error(`Failed to generate specification: ${error.message}`);
         }
-    } catch (error) {
-        console.error(`Network or parsing error during LLM call: ${error.message}`);
-        return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
+        return result;
+    } catch (err) {
+    console.error('Error:', err);
     }
 }
 
-async function generateSpecification(inputMessage, additionalRequirement = "", historyID, brainId) {
+async function generateSpecification(inputMessage, additionalRequirement = "", brainId) {
     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
     const __dirname = dirname(__filename);
     const filePath = path.join(__dirname, '..', 'docs', 'analysis.md');
     const docsPath = path.join(__dirname, '..', 'docs', 'index.txt');
 
     try {
-
         let systemMessage = await fs.readFile(filePath, 'utf8');
         let docs = await fs.readFile(docsPath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
-        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.\n
-                             ${inputMessage}
-                            `;
+        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.\n ${inputMessage}`;
         console.log("Generating S4 Specification...");
-        const { result, error } = await callLLM(systemMessage, userMessage, historyID, brainId);
+        const { result, error } = await callLLM(systemMessage, userMessage, brainId);
         if (error) {
             throw new Error(`Failed to generate specification: ${error.message}`);
         }
@@ -104,11 +83,38 @@ async function generateSpecification(inputMessage, additionalRequirement = "", h
     }
 }
 
-async function callLLM(systemMessage, userMessage, historyID, brainId) {
+async function convertCodeToS4(inputMessage, additionalRequirement = "", brainId) {
+    const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
+    const __dirname = dirname(__filename);
+    const filePath = path.join(__dirname, '..', 'docs', 'refactor.md');
+    try {
+        let systemMessage = await fs.readFile(filePath, 'utf8');
+        systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
+        const userMessage = `OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.\n ${inputMessage}`;
+        console.log("Converting R3 Code to S4...");
+        try {
+            const { result, error } = await callLLM(systemMessage, userMessage, brainId);
+        if (error) {
+            throw new Error(`Failed to convert code: ${error.message}`);
+        }
+        if (result) {
+            return result;
+        } else {
+            return '';
+        }
+    } catch (err) {
+        console.error('Error:', err);
+    }
+    } catch (err) {
+        console.error('Error:', err);
+    }
+}
+
+async function callLLM(systemMessage, userMessage, brainId) {
     const body = {
         prompt: userMessage,
         customMessageBehaviour: systemMessage,
-        knowledgeBaseId: brainId || process.env.BRAIN_ID,
+        knowledgeBaseId: brainId,
         chatHistoryId: historyID,
         useGptKnowledge: true
     };
@@ -150,15 +156,15 @@ async function callLLM(systemMessage, userMessage, historyID, brainId) {
  * @returns {Promise<string>} - The response message.
  */
 export async function ask(option, userMessage, env) {
+    let impGuideLine = '<b>Here is implementation guidelines:\n</b> abc';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
-
-    /*     if (option === 'analyze') {
-            //const historyID = await createHistory(brainId);
-            if (historyID && historyID.error) {
-                return historyID.error.message;
-            }
-            return await generateSpecification(userMessage, env.customPrompt || "", historyID, brainId);
-        } */
-
-    return `Echo: ${userMessage}`;
+    if (option === 'analyze') {
+        return await generateSpecification(userMessage, env.customPrompt || "", brainId);
+    }else if(option === 'refactor'){
+        //const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
+        //const s4CodeJson = parseDirtyJson(s4Code);
+        return impGuideLine;
+    }else{
+        return await chat(userMessage, env.customPrompt || "", brainId);
+    }
 }

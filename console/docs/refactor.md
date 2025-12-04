@@ -37,6 +37,9 @@ When generating the new code snippets for the refactor_guide, you **MUST STRICTL
 8. **UNIT TEST**:
  - Create ABAP Unit Tests compliant with S/4HANA best practices, using ABAP Unit classes, local test classes, and CL_ABAP_UNIT_ASSERT to validate all functional scenarios.
 
+**User-specified additional requirements for this conversion:**
+${additionalRequirement}
+
 Provide the Refactoring in a Json format.
 Example format:
 {

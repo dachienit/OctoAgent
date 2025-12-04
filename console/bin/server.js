@@ -65,6 +65,36 @@ async function getOAuth2AccessToken() {
   }
 }
 
+async function createHistory(brainId) {
+    const url = process.env.DIA_HISTORY + "/" + (brainId || process.env.BRAIN_ID);
+    try {
+        const response = await fetch(url,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token.accessToken}`,
+                },
+            }
+        );
+
+        if (response.status === 200) {
+            const historyId = await response.text();
+            if (historyId) {
+                return historyId;
+            } else {
+                return { error: { message: "LLM response was empty or malformed." } };
+            }
+        } else {
+            const errorText = await response.text();
+            console.error(`LLM API Error ${response.status}: ${errorText}`);
+            return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
+        }
+    } catch (error) {
+        console.error(`Network or parsing error during LLM call: ${error.message}`);
+        return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
+    }
+}
+
 async function main() {
   try {
     global.token = await getOAuth2AccessToken();
@@ -173,13 +203,31 @@ async function main() {
   app.post('/api/chat', async (req, res) => {
     try {
       const { message, env, option, reLoad } = req.body;
-
       if (!message || typeof message !== 'string') {
         return res.status(400).json({ error: 'Message is required and must be a string' });
       }
 
-      if (!reLoad) {
-        main();
+      if (reLoad) {
+        /* try {
+          global.token = await getOAuth2AccessToken();
+
+          if (process.env.PROX) {
+            // Corporate proxy uses CA not in undici's certificate store
+            //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+            const dispatcher = new ProxyAgent({
+              uri: new URL(process.env.PROX).toString(),
+              token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+            });
+            setGlobalDispatcher(dispatcher);
+          }
+
+          console.log('Token Type:', token.tokenType);
+          console.log('Expires In:', token.expiresIn);
+        } catch (error) {
+          console.error('Failed to authenticate:', error.message);
+        } */
+
+        global.historyID = '';//await createHistory(env.BRAIN_ID)
       }
 
       // Call the ask function
@@ -268,4 +316,6 @@ async function main() {
     console.log(chalk.blue(`Frontend is available at http://localhost:${PORT}`));
   });
 }
+
+main();
 
