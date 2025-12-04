@@ -156,7 +156,7 @@ async function callLLM(systemMessage, userMessage, brainId) {
  * @returns {Promise<string>} - The response message.
  */
 export async function ask(option, userMessage, env) {
-    let impGuideLine = '<b>Here is implementation guidelines:\n</b> abc';
+    let impGuideLine = '<b>Here is implementation guidelines:</b>\n abc\nbbb';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
     if (option === 'analyze') {
         return userMessage;

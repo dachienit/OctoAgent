@@ -211,6 +211,11 @@ function createMessageElement({ role, text, env, time }) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // Configure marked to treat newlines as line breaks
+  if (typeof marked !== 'undefined') {
+    marked.use({ breaks: true });
+  }
+
   // Sidebar elements
   const leftSidebar = document.getElementById("leftSidebar");
   const rightSidebar = document.getElementById("rightSidebar");
