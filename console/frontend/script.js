@@ -75,6 +75,7 @@ function renderBotText(text) {
           </div>
           <textarea class="code-textarea" spellcheck="false">${code.trim()}</textarea>
           <div class="code-actions">
+            <button type="button" class="btn-primary btn-review-code" style="margin-right: 8px;">Review</button>
             <button type="button" class="btn-primary btn-apply-code">Apply</button>
           </div>
         </div>
@@ -193,7 +194,7 @@ function createMessageElement({ role, text, env, time }) {
 
   const meta = document.createElement("div");
   meta.className = "message-meta";
-  // Use NTID if available for user, otherwise default to "Bạn"
+  // Use NTID if available for user, otherwise default to "You"
   const who = role === "user" ? (env && env.ntid ? env.ntid : "You") : "Octo Agent";
   meta.innerHTML = `<span>${who}</span><span>${time || formatTime()}</span>`;
 
@@ -436,7 +437,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (!currentEnv.ntid || currentEnv.ntid === "") {
         console.log('[DOMContentLoaded] Setting NTID to:', defaultNtid);
         envNtid.value = defaultNtid;
-        // Cập nhật env và lưu
+        // Update env and save
         const updatedEnv = { ...currentEnv, ntid: defaultNtid };
         saveEnv(updatedEnv);
       } else {
@@ -727,12 +728,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (envNtid) env.ntid = envNtid.value.trim();
 
     // For display, we might want to show just the user input, or the full text?
-    // User requested: "gởi Hãy kiểm tra file: (xuống dòng) + content file được đính kèm lên vào userMessage của hàm ask"
+    // User requested: "send Check file: (newline) + attached file content into userMessage of ask function"
     // But for UI display, usually we show what user typed + maybe an indicator of file.
     // Here I will show the full text being sent for clarity, or maybe just the user input?
     // Let's show the full text as it's what's being sent.
     // Actually, if the file is huge, showing it in chat might be bad.
-    // But the requirement says "gởi ... vào userMessage", which implies the backend receives it.
+    // But the requirement says "send ... into userMessage", which implies the backend receives it.
     // The UI `createMessageElement` displays `text`.
     // Let's display the full text for now to be safe, or maybe truncate it?
     // Given the requirement is about what is SENT, I will send the combined text.
@@ -853,9 +854,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const target = e.target;
     if (!(target instanceof HTMLElement)) return;
     const applyBtn = target.closest(".btn-apply-code");
+    const reviewBtn = target.closest(".btn-review-code");
     const copyBtn = target.closest(".btn-copy-code");
 
-    const wrapper = (applyBtn || copyBtn) && target.closest(".code-block-editable");
+    const wrapper = (applyBtn || reviewBtn || copyBtn) && target.closest(".code-block-editable");
     if (!wrapper) return;
     const textarea = wrapper.querySelector(".code-textarea");
     if (!(textarea instanceof HTMLTextAreaElement)) return;
@@ -883,13 +885,40 @@ document.addEventListener("DOMContentLoaded", () => {
       userInput.value = newCode;
       userInput.focus();
 
-      // Bot trả thêm message hiển thị code sau khi sửa
+      // Bot returns additional message displaying code after editing
       const botMsgEl = createMessageElement({
         role: "bot",
-        text: `Đoạn code sau khi sửa:\n\n<abap>\n${newCode}\n</abap>`,
+        text: `Code after editing:\n\n<abap>\n${newCode}\n</abap>`,
       });
       messages.appendChild(botMsgEl);
       messages.scrollTop = messages.scrollHeight;
+    }
+
+    if (reviewBtn) {
+      const code = textarea.value;
+
+      // Show loading or some feedback?
+      // For now, just send to API
+
+      // We need 'env' here. We can get it from globalSettings
+      const env = window.globalSettings || loadEnv();
+
+      // Send to API with option 'review'
+      // We want to display the bot's response
+      (async () => {
+        try {
+          const reply = await sendToApi(code, env, 'review', false);
+          const botMsgEl = createMessageElement({
+            role: "bot",
+            text: reply,
+          });
+          messages.appendChild(botMsgEl);
+          messages.scrollTop = messages.scrollHeight;
+        } catch (err) {
+          console.error("Error reviewing code:", err);
+          alert("Error reviewing code");
+        }
+      })();
     }
   });
 });

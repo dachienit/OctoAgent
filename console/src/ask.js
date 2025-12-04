@@ -186,19 +186,22 @@ function formatRefactorGuide(jsonData) {
  * @returns {Promise<string>} - The response message.
  */
 export async function ask(option, userMessage, env) {
-    let impGuideLine = '**Here is implementation guidelines:**\n';
+    let impGuideLine = '**Here is implementation guidelines:**\n <abap>1234</abap>';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
     if (option === 'analyze') {
         return userMessage;
         //return await generateSpecification(userMessage, env.customPrompt || "", brainId);
     } else if (option === 'refactor') {
-        const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
+        /* const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
         const s4CodeJson = parseDirtyJson(s4Code);
         if (s4CodeJson) {
             return impGuideLine + formatRefactorGuide(s4CodeJson);
         } else {
             return "Error: Failed to parse refactor guide from LLM response.";
-        }
+        } */
+        return impGuideLine;
+    } else if (option === 'review') {
+        return "Review:\n" + userMessage;
     } else {
         return userMessage;
         //return await chat(userMessage, env.customPrompt || "", brainId);
