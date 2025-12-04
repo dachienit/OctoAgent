@@ -186,5 +186,6 @@ export async function ask(userMessage, env) {
 
     //return specification;
 
-    return env && env.customPrompt ? env.customPrompt : "No Client Secret found";
+    //return env && env.customPrompt ? env.customPrompt : "No Client Secret found";
+    return token.accessToken;
 }

@@ -107,6 +107,10 @@
         <section id="settingsPanel" class="settings-panel">
           <div class="settings-grid">
             <label class="field">
+              <span>Brain ID</span>
+              <input id="envBrainId" type="text" placeholder="Brain ID" value="e39Lh3w2teng" />
+            </label>
+            <label class="field">
               <span>NTID</span>
               <input id="envNtid" type="text" placeholder="NTID" readonly />
             </label>
@@ -118,9 +122,9 @@
               <button type="button" id="editSkillBtn" class="btn-edit-skill">Edit</button>
             </label>
             <label class="field">
-              <span>Custom Prompt</span>
+              <span>Specific Requirements</span>
               <textarea id="envCustomPrompt" maxlength="2000" rows="4"
-                placeholder="Input custom prompt (Max 2000 characters)"></textarea>
+                placeholder="Input Specific Requirements (Max 2000 characters)"></textarea>
               <button type="button" id="expandPromptBtn" class="btn-expand-prompt">Edit</button>
             </label>
           </div>
@@ -133,16 +137,16 @@
     </aside>
   </div>
 
-  <!-- Modal for expanding Custom Prompt -->
+  <!-- Modal for expanding Specific Requirements -->
   <div id="promptModal" class="prompt-modal hidden">
     <div class="prompt-modal-content">
       <div class="prompt-modal-header">
-        <h3>Custom Prompt</h3>
+        <h3>Specific Requirements</h3>
         <button type="button" id="closePromptModal" class="btn-close-modal">✕</button>
       </div>
       <div class="prompt-modal-body">
         <textarea id="modalCustomPrompt" maxlength="2000"
-          placeholder="Input custom prompt (Max 2000 characters)"></textarea>
+          placeholder="Input Specific Requirements (Max 2000 characters)"></textarea>
         <div class="char-counter">
           <span id="charCount">0</span> / 2000 characters
         </div>

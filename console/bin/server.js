@@ -67,16 +67,20 @@ async function getOAuth2AccessToken() {
 
 async function main() {
   try {
-    global.token = await getOAuth2AccessToken();
     if (process.env.PROX) {
       // Corporate proxy uses CA not in undici's certificate store
       //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
       const dispatcher = new ProxyAgent({
         uri: new URL(process.env.PROX).toString(),
-        token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+        token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`,
+        connect: {
+          timeout: 30000
+        }
       });
       setGlobalDispatcher(dispatcher);
     }
+
+    global.token = await getOAuth2AccessToken();
 
     console.log('Token Type:', token.tokenType);
     console.log('Expires In:', token.expiresIn);
@@ -156,6 +160,19 @@ async function main() {
   });
 
   // API endpoint for chat
+  // API endpoint to refresh token
+  app.post('/api/refresh-token', async (req, res) => {
+    try {
+      console.log('[API] Refreshing token...');
+      global.token = await getOAuth2AccessToken();
+      console.log('[API] Token refreshed successfully');
+      res.json({ success: true, expiresIn: global.token.expiresIn });
+    } catch (error) {
+      console.error('[API] Error refreshing token:', error);
+      res.status(500).json({ error: 'Failed to refresh token', message: error.message });
+    }
+  });
+
   app.post('/api/chat', async (req, res) => {
     try {
       const { message, env } = req.body;

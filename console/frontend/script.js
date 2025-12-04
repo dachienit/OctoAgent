@@ -1,6 +1,7 @@
 const STORAGE_KEY = "chatbox_env_settings_v1";
 
 const defaultEnv = {
+  brainId: "e39Lh3w2teng",
   ntid: "",
   customPrompt: "",
 };
@@ -224,6 +225,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const saveSettingsBtn = document.getElementById("saveSettings");
   const resetSettingsBtn = document.getElementById("resetSettings");
 
+  const envBrainId = document.getElementById("envBrainId");
   const envNtid = document.getElementById("envNtid");
   const envCustomPrompt = document.getElementById("envCustomPrompt");
 
@@ -343,10 +345,20 @@ document.addEventListener("DOMContentLoaded", () => {
     messages.innerHTML = "";
     // Clear input
     userInput.value = "";
+    // Clear Specific Requirements
+    envCustomPrompt.value = "";
+    globalSettings.customPrompt = "";
+    // Reset Brain ID
+    envBrainId.value = defaultEnv.brainId;
+    globalSettings.brainId = defaultEnv.brainId;
     // Update active chat item
     document.querySelectorAll(".chat-item").forEach(item => {
       item.classList.remove("active");
     });
+
+    // Refresh token
+    refreshToken();
+
     // You can add more logic here to create a new chat session
     console.log("New chat created");
   });
@@ -388,7 +400,13 @@ document.addEventListener("DOMContentLoaded", () => {
   // Load env on start
   const currentEnv = loadEnv();
 
-  envCustomPrompt.value = currentEnv.customPrompt || "";
+  // Always clear Specific Requirements on reload/start
+  currentEnv.customPrompt = "";
+  envCustomPrompt.value = "";
+
+  // Always reset Brain ID on reload/start
+  currentEnv.brainId = defaultEnv.brainId;
+  envBrainId.value = defaultEnv.brainId;
 
   // Automatically get Windows username and fill in NTID
   (async () => {
@@ -420,6 +438,9 @@ document.addEventListener("DOMContentLoaded", () => {
       console.warn('[DOMContentLoaded] No NTID available');
       envNtid.value = "";
     }
+
+    // Refresh token on load
+    refreshToken();
   })();
 
 
@@ -431,7 +452,7 @@ document.addEventListener("DOMContentLoaded", () => {
       envNtid.value = ntidValue;
     }
     const newEnv = {
-
+      brainId: envBrainId.value.trim(),
       ntid: ntidValue,
       customPrompt: envCustomPrompt.value.trim(),
     };
@@ -446,13 +467,14 @@ document.addEventListener("DOMContentLoaded", () => {
   resetSettingsBtn.addEventListener("click", async () => {
 
     envCustomPrompt.value = "";
+    envBrainId.value = defaultEnv.brainId;
     const defaultNtid = await getWindowsNtid();
     envNtid.value = defaultNtid;
     const resetEnv = { ...defaultEnv, ntid: defaultNtid };
     saveEnv(resetEnv);
   });
 
-  // Modal handlers for Custom Prompt
+  // Modal handlers for Specific Requirements
   if (expandPromptBtn && promptModal && modalCustomPrompt) {
     // Open modal
     expandPromptBtn.addEventListener("click", () => {
@@ -632,6 +654,21 @@ document.addEventListener("DOMContentLoaded", () => {
     } catch (error) {
       console.error('Error sending message to API:', error);
       throw error;
+    }
+  }
+
+  async function refreshToken() {
+    try {
+      console.log('[refreshToken] Refreshing token...');
+      const response = await fetch('/api/refresh-token', { method: 'POST' });
+      if (response.ok) {
+        const data = await response.json();
+        console.log('[refreshToken] Token refreshed:', data);
+      } else {
+        console.error('[refreshToken] Failed to refresh token:', response.status);
+      }
+    } catch (error) {
+      console.error('[refreshToken] Error refreshing token:', error);
     }
   }
 
