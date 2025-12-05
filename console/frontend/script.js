@@ -961,6 +961,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const env = window.globalSettings || loadEnv();
       (async () => {
         try {
+          if (waitOverlay) waitOverlay.classList.remove("hidden");
           const reply = await sendToApi(newCode, env, 'apply', false, metadata);
           const botMsgEl = createMessageElement({
             role: "bot",
@@ -971,6 +972,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (err) {
           console.error("Error applying code:", err);
           alert("Error applying code");
+        } finally {
+          if (waitOverlay) waitOverlay.classList.add("hidden");
         }
       })();
     }
@@ -998,6 +1001,7 @@ document.addEventListener("DOMContentLoaded", () => {
       // We want to display the bot's response
       (async () => {
         try {
+          if (waitOverlay) waitOverlay.classList.remove("hidden");
           const reply = await sendToApi(code, env, 'review', false, metadata);
           const botMsgEl = createMessageElement({
             role: "bot",
@@ -1008,6 +1012,8 @@ document.addEventListener("DOMContentLoaded", () => {
         } catch (err) {
           console.error("Error reviewing code:", err);
           alert("Error reviewing code");
+        } finally {
+          if (waitOverlay) waitOverlay.classList.add("hidden");
         }
       })();
     }
