@@ -4,7 +4,15 @@ const defaultEnv = {
   brainId: "e39Lh3w2teng",
   ntid: "",
   customPrompt: "",
+  theme: "colorful",
 };
+
+function applyTheme(theme) {
+  document.body.classList.remove("theme-dark-gray", "theme-black", "theme-white");
+  if (theme && theme !== "colorful") {
+    document.body.classList.add(`theme-${theme}`);
+  }
+}
 
 // Global variable to store settings, accessible from anywhere
 let globalSettings = { ...defaultEnv };
@@ -254,6 +262,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const envBrainId = document.getElementById("envBrainId");
   const envNtid = document.getElementById("envNtid");
+  const envTheme = document.getElementById("envTheme");
   const envCustomPrompt = document.getElementById("envCustomPrompt");
 
   // Chat elements
@@ -454,6 +463,11 @@ document.addEventListener("DOMContentLoaded", () => {
   currentEnv.brainId = defaultEnv.brainId;
   envBrainId.value = defaultEnv.brainId;
 
+  // Initialize Theme
+  if (!currentEnv.theme) currentEnv.theme = defaultEnv.theme;
+  if (envTheme) envTheme.value = currentEnv.theme;
+  applyTheme(currentEnv.theme);
+
   // Save the reset state to ensure consistency
   saveEnv(currentEnv);
 
@@ -507,8 +521,10 @@ document.addEventListener("DOMContentLoaded", () => {
       brainId: envBrainId.value.trim(),
       ntid: ntidValue,
       customPrompt: envCustomPrompt.value.trim(),
+      theme: envTheme ? envTheme.value : defaultEnv.theme,
     };
     saveEnv(newEnv);
+    applyTheme(newEnv.theme);
     // simple visual feedback
     saveSettingsBtn.textContent = "Saved ✓";
     setTimeout(() => {
@@ -520,10 +536,12 @@ document.addEventListener("DOMContentLoaded", () => {
 
     envCustomPrompt.value = "";
     envBrainId.value = defaultEnv.brainId;
+    if (envTheme) envTheme.value = defaultEnv.theme;
     const defaultNtid = await getWindowsNtid();
     envNtid.value = defaultNtid;
     const resetEnv = { ...defaultEnv, ntid: defaultNtid };
     saveEnv(resetEnv);
+    applyTheme(resetEnv.theme);
   });
 
   // Modal handlers for Specific Requirements
