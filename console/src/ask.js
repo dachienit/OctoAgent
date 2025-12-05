@@ -256,7 +256,7 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
     } else if (option === 'apply') {
         return "Apply feature is coming soon.";
     } else {
-        return userMessage;
-        //return await chat(userMessage, env.customPrompt || "", brainId);
+        //return userMessage;
+        return await chat(userMessage, env.customPrompt || "", brainId);
     }
 }
