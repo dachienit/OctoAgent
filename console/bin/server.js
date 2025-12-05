@@ -97,7 +97,7 @@ async function createHistory(brainId) {
 
 async function main() {
   try {
-    global.token = await getOAuth2AccessToken();
+    global.token = '';//await getOAuth2AccessToken();
 
     if (process.env.PROX) {
       // Corporate proxy uses CA not in undici's certificate store
@@ -230,7 +230,7 @@ async function main() {
           console.error('Failed to authenticate:', error.message);
         } */
 
-        global.historyID = await createHistory(env.BRAIN_ID)
+        global.historyID = '';//await createHistory(env.BRAIN_ID)
       }
 
       // Call the ask function

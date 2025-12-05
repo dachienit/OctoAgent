@@ -948,6 +948,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       alert("Feature coming soon.");
 
+      // Add User Message for visual feedback
+      const userMsgEl = createMessageElement({
+        role: "user",
+        text: "@Apply",
+        env: window.globalSettings || loadEnv(),
+      });
+      messages.appendChild(userMsgEl);
+      scrollToBottom();
+
       // Send to API with option 'apply'
       const env = window.globalSettings || loadEnv();
       (async () => {
@@ -977,6 +986,15 @@ document.addEventListener("DOMContentLoaded", () => {
       console.log('[Review] Extracted metadata:', metadata);
 
       // Send to API with option 'review'
+      // Add User Message for visual feedback
+      const userMsgEl = createMessageElement({
+        role: "user",
+        text: "@Review",
+        env: window.globalSettings || loadEnv(),
+      });
+      messages.appendChild(userMsgEl);
+      scrollToBottom();
+
       // We want to display the bot's response
       (async () => {
         try {

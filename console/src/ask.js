@@ -122,12 +122,12 @@ async function reviewAndCorrectCode(inputMessage, additionalRequirement = "", br
         let systemMessage = await fs.readFile(filePath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
         let userMessage = "";
-        if(error){
+        if (error) {
             userMessage = `Please review S4 code and fix if any error found.\n
 Here is ABAP S4 code:\n
 ${inputMessage}
 `;
-        } else{
+        } else {
             userMessage = `I've implemented the S4 code after refactor to SAP system but have some errors when active.\n
 Here errors returned from ATC check:\n
 ${error} \n
@@ -256,7 +256,7 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
     } else if (option === 'apply') {
         return "Apply feature is coming soon.";
     } else {
-        //return userMessage;
-        return await chat(userMessage, env.customPrompt || "", brainId);
+        return userMessage;
+        //return await chat(userMessage, env.customPrompt || "", brainId);
     }
 }
