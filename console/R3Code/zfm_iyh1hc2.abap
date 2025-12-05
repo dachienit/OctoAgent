@@ -15,7 +15,8 @@ FUNCTION zfm_iyh1hc2.
 
   DATA: lv_netpr TYPE bprei,
         ls_po    TYPE lty_po,
-        lt_po    TYPE STANDARD TABLE OF lty_po.
+        lt_po    TYPE STANDARD TABLE OF lty_po,
+        lt_matnr TYPE ZTT_PO_A_MATNR.
 
   SELECT a~ebeln b~ebelp b~netpr
     FROM ekko AS a

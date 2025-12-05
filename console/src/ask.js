@@ -71,7 +71,9 @@ async function generateSpecification(inputMessage, additionalRequirement = "", b
         let docs = await fs.readFile(docsPath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
-        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.\n ${inputMessage}`;
+        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.\n 
+${inputMessage}
+`;
         console.log("Generating S4 Specification...");
         const { result, error } = await callLLM(systemMessage, userMessage, brainId);
         if (error) {
@@ -90,7 +92,9 @@ async function convertCodeToS4(inputMessage, additionalRequirement = "", brainId
     try {
         let systemMessage = await fs.readFile(filePath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
-        const userMessage = `OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.\n ${inputMessage}`;
+        const userMessage = `OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.\n 
+${inputMessage}
+`;
         console.log("Converting R3 Code to S4...");
         try {
             const { result, error } = await callLLM(systemMessage, userMessage, brainId);
@@ -132,7 +136,7 @@ async function callLLM(systemMessage, userMessage, brainId) {
             }
         );
 
-        if (response.status === 200) {
+        if (response.   status === 200) {
             const chat = await response.json();
             if (chat.result) {
                 return { result: chat.result, history: '' };
@@ -189,17 +193,20 @@ export async function ask(option, userMessage, env) {
     let impGuideLine = '**Here is implementation guidelines:**\n <abap>1234</abap>';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
     if (option === 'analyze') {
-        return userMessage;
-        //return await generateSpecification(userMessage, env.customPrompt || "", brainId);
+        //return userMessage;
+        return await generateSpecification(userMessage, env.customPrompt || "", brainId);
     } else if (option === 'refactor') {
-        /* const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
-        const s4CodeJson = parseDirtyJson(s4Code);
+        const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
+        /* const s4CodeJson = parseDirtyJson(s4Code);
         if (s4CodeJson) {
             return impGuideLine + formatRefactorGuide(s4CodeJson);
         } else {
             return "Error: Failed to parse refactor guide from LLM response.";
         } */
-        return impGuideLine;
+        const output = s4Code.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
+            return `<abap>${code}</abap>`;
+        });
+        return output;
     } else if (option === 'review') {
         return "Review:\n" + userMessage;
     } else {

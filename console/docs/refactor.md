@@ -40,39 +40,10 @@ When generating the new code snippets for the refactor_guide, you **MUST STRICTL
 **User-specified additional requirements for this conversion:**
 ${additionalRequirement}
 
-Provide the Refactoring in a Json format.
-Example format:
-{
-  "refactor_guide": [
-    {
-      "step": 1,
-      "action_type": "MANUAL_CHECK",
-      "title": "PRE-REQUISITE: Check Dependencies",
-      "description": description here ...,
-      "object_name": "N/A",
-      "object_type": "INFO",
-      "code_snippet": "Standard Tables:\n- sflight\n\nCustom Objects:\n- (None identified in this example)",
-      "developer_note": "If any `Custom Objects` are listed here, they MUST be checked, and potentially migrated, first."
-    },
-    {
-      "step": 2,
-      "action_type": "CREATE_OBJECT",
-      "title": title here ...,
-      "description": description here ...,
-      "object_name": class name here ...,
-      "object_type": "CLASS",
-      "code_snippet": S4 source code here include DEFINITION and IMPLEMENTATION,
-      "developer_note": developer note here ...
-    },
-    {
-      "step": 3,
-      "action_type": "UNIT_TEST",
-      "title": title here ...,
-      "description": description here ...,
-      "object_name": class name here ...,
-      "object_type": "UNIT_TEST",
-      "code_snippet": S4 source code for unit test here
-      "developer_note": developer note here ...
-    }
-  ]
-}
+Provide the refactoring in a structured, readable markdown format.
+Output format need to follow:
+Mention that below is the implementation guideline for developer.
+1. Check Dependencies: explant all custom dependencies here, how to check and suggest for developer what need to do.
+2. S4 object 1: title, description, developer note here, S4 logic code after refactoring (need to include Object type (CLAS/PROG/CODE_BLOCK), Object name, Logic code)
+3. S4 object 2 (if any): title, description, developer note here, S4 logic code after refactoring (need to include Object type (CLAS/PROG/CODE_BLOCK), Object name, Logic code)
+4. Unit test (if any): title, description, developer note here, S4 logic code for unit test after refactoring (need to include Object type (UNIT_TEST), Object name, Logic code)

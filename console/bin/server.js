@@ -230,7 +230,7 @@ async function main() {
           console.error('Failed to authenticate:', error.message);
         } */
 
-        global.historyID = '';//await createHistory(env.BRAIN_ID)
+        global.historyID = await createHistory(env.BRAIN_ID)
       }
 
       // Call the ask function
