@@ -26,6 +26,11 @@ function escapeHtml(str) {
     .replace(/'/g, "&#39;");
 }
 
+function adjustCodeTextareaHeight(textarea) {
+  textarea.style.height = 'auto';
+  textarea.style.height = textarea.scrollHeight + 'px';
+}
+
 function renderBotText(text) {
   // Parse the entire message, only the part within <abap>...</abap> enters the edit frame,
   // the rest displays normal text.
@@ -201,6 +206,19 @@ function createMessageElement({ role, text, env, time }) {
   const content = document.createElement("div");
   if (role === "bot") {
     content.innerHTML = renderBotText(text);
+    // If text contains <abap>, add has-code class to wrapper
+    if (text.includes("<abap>")) {
+      wrapper.classList.add("has-code");
+
+      // Defer execution to ensure elements are in DOM or just ready
+      setTimeout(() => {
+        const textareas = content.querySelectorAll(".code-textarea");
+        textareas.forEach(textarea => {
+          adjustCodeTextareaHeight(textarea);
+          textarea.addEventListener("input", () => adjustCodeTextareaHeight(textarea));
+        });
+      }, 0);
+    }
   } else {
     content.textContent = text;
   }
