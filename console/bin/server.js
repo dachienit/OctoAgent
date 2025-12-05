@@ -97,7 +97,7 @@ async function createHistory(brainId) {
 
 async function main() {
   try {
-    global.token = await getOAuth2AccessToken();
+    global.token = '';//await getOAuth2AccessToken();
 
     if (process.env.PROX) {
       // Corporate proxy uses CA not in undici's certificate store
@@ -202,7 +202,7 @@ async function main() {
 
   app.post('/api/chat', async (req, res) => {
     try {
-      const { message, env, option, reLoad } = req.body;
+      const { message, env, option, reLoad, objectType, objectName, error } = req.body;
 
       // If option is present, message can be empty (e.g. @refactor might not need text if it uses context or just returns a template)
       // If option is NOT present, message is required.
@@ -230,11 +230,11 @@ async function main() {
           console.error('Failed to authenticate:', error.message);
         } */
 
-        global.historyID = await createHistory(env.BRAIN_ID)
+        global.historyID = '';//await createHistory(env.BRAIN_ID)
       }
 
       // Call the ask function
-      const response = await ask(option, message, env);
+      const response = await ask(option, message, env, objectType, objectName, error);
 
       res.json({ reply: response });
     } catch (error) {

@@ -392,6 +392,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // You can add more logic here to create a new chat session
     console.log("New chat created");
+    showWelcomeScreen();
   });
 
   // Chat items click handler
@@ -426,6 +427,20 @@ document.addEventListener("DOMContentLoaded", () => {
     } else {
       hideCommandMenu();
     }
+  }
+
+  function showWelcomeScreen() {
+    messages.innerHTML = `
+      <div class="welcome-screen">
+
+        <div class="welcome-title">Welcome to Octo Agent.</div>
+        <div class="welcome-text">
+          Use <span class="command-highlight">@analyze</span> to analyze ABAP R/3 logic, 
+          <span class="command-highlight">@refactor</span> to refactor code to ABAP S/4HANA, and 
+          <span class="command-highlight">@review</span> to review any ABAP code block.
+        </div>
+      </div>
+    `;
   }
 
   // Load env on start
@@ -475,6 +490,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
     // Refresh token on load
     //refreshToken();
+
+    // Show welcome screen on load
+    showWelcomeScreen();
   })();
 
 
@@ -668,14 +686,14 @@ document.addEventListener("DOMContentLoaded", () => {
     messages.scrollTop = messages.scrollHeight;
   }
 
-  async function sendToApi(messageText, env, option = null, reLoad = false) {
+  async function sendToApi(messageText, env, option = null, reLoad = false, metadata = {}) {
     try {
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageText, env: env, option: option, reLoad: reLoad }),
+        body: JSON.stringify({ message: messageText, env: env, option: option, reLoad: reLoad, ...metadata }),
       });
 
       if (!response.ok) {
@@ -756,6 +774,11 @@ document.addEventListener("DOMContentLoaded", () => {
     // Let's display the full text for now to be safe, or maybe truncate it?
     // Given the requirement is about what is SENT, I will send the combined text.
     // For UI, I will display the combined text.
+
+    // Clear welcome screen if present
+    if (messages.querySelector(".welcome-screen")) {
+      messages.innerHTML = "";
+    }
 
     const userMsgEl = createMessageElement({
       role: "user",
@@ -900,32 +923,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (applyBtn) {
       const newCode = textarea.value;
-      userInput.value = newCode;
-      userInput.focus();
 
-      // Bot returns additional message displaying code after editing
-      const botMsgEl = createMessageElement({
-        role: "bot",
-        text: `Code after editing:\n\n<abap>\n${newCode}\n</abap>`,
-      });
-      messages.appendChild(botMsgEl);
-      messages.scrollTop = messages.scrollHeight;
+      // Extract metadata
+      const metadata = extractMetadata(wrapper);
+      console.log('[Apply] Extracted metadata:', metadata);
+
+      alert("Feature coming soon.");
+
+      // Send to API with option 'apply'
+      const env = window.globalSettings || loadEnv();
+      (async () => {
+        try {
+          const reply = await sendToApi(newCode, env, 'apply', false, metadata);
+          const botMsgEl = createMessageElement({
+            role: "bot",
+            text: reply,
+          });
+          messages.appendChild(botMsgEl);
+          messages.scrollTop = messages.scrollHeight;
+        } catch (err) {
+          console.error("Error applying code:", err);
+          alert("Error applying code");
+        }
+      })();
     }
 
     if (reviewBtn) {
       const code = textarea.value;
 
-      // Show loading or some feedback?
-      // For now, just send to API
-
       // We need 'env' here. We can get it from globalSettings
       const env = window.globalSettings || loadEnv();
+
+      // Extract metadata (Object Type, Object Name, Error)
+      const metadata = extractMetadata(wrapper);
+      console.log('[Review] Extracted metadata:', metadata);
 
       // Send to API with option 'review'
       // We want to display the bot's response
       (async () => {
         try {
-          const reply = await sendToApi(code, env, 'review', false);
+          const reply = await sendToApi(code, env, 'review', false, metadata);
           const botMsgEl = createMessageElement({
             role: "bot",
             text: reply,
@@ -939,6 +976,49 @@ document.addEventListener("DOMContentLoaded", () => {
       })();
     }
   });
+
+  function extractMetadata(wrapper) {
+    let objectType = "";
+    let objectName = "";
+    let error = "";
+
+    // The wrapper is the .code-block-editable div
+    // We need to look at previous siblings of this wrapper
+    let sibling = wrapper.previousElementSibling;
+
+    console.log('[Metadata Extraction] Starting...');
+
+    let attempts = 0;
+    while (sibling && attempts < 10) {
+      // console.log('[Metadata Extraction] Checking sibling:', sibling.tagName, sibling.textContent.trim().substring(0, 50) + "...");
+
+      const text = sibling.innerText || sibling.textContent;
+
+      // Try to match patterns in the text content of the sibling
+      if (!objectType) {
+        const match = text.match(/Object Type\s*[:]\s*(.*?)(\n|$)/i);
+        if (match) objectType = match[1].trim().replace(/`/g, '');
+      }
+      if (!objectName) {
+        const match = text.match(/Object Name\s*[:]\s*(.*?)(\n|$)/i);
+        if (match) objectName = match[1].trim().replace(/`/g, '');
+      }
+      if (!error) {
+        const match = text.match(/Error\s*[:]\s*(.*?)(\n|$)/i);
+        if (match) error = match[1].trim().replace(/`/g, '');
+      }
+
+      if (objectType && objectName && error) {
+        console.log('[Metadata Extraction] All metadata found.');
+        break;
+      }
+
+      sibling = sibling.previousElementSibling;
+      attempts++;
+    }
+
+    return { objectType, objectName, error };
+  }
 });
 
 

@@ -136,7 +136,7 @@ async function callLLM(systemMessage, userMessage, brainId) {
             }
         );
 
-        if (response.   status === 200) {
+        if (response.status === 200) {
             const chat = await response.json();
             if (chat.result) {
                 return { result: chat.result, history: '' };
@@ -189,7 +189,7 @@ function formatRefactorGuide(jsonData) {
  * @param {string} userMessage - The message from the user.
  * @returns {Promise<string>} - The response message.
  */
-export async function ask(option, userMessage, env) {
+export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "") {
     let impGuideLine = '**Here is implementation guidelines:**\n <abap>1234</abap>';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
     if (option === 'analyze') {
@@ -208,7 +208,17 @@ export async function ask(option, userMessage, env) {
         });
         return output;
     } else if (option === 'review') {
-        return "Review:\n" + userMessage;
+        let reviewMessage = `Reviewing code for ${objectType} ${objectName}`;
+        if (error) {
+            reviewMessage += ` with error: ${error}`;
+        }
+        reviewMessage += `\n\nCode:\n${userMessage}`;
+
+        // You might want to call the LLM here with this enriched context
+        // For now, returning the constructed message as per previous logic
+        return "Review:\n" + reviewMessage;
+    } else if (option === 'apply') {
+        return "Apply feature is coming soon.";
     } else {
         return userMessage;
         //return await chat(userMessage, env.customPrompt || "", brainId);
