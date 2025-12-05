@@ -114,6 +114,47 @@ ${inputMessage}
     }
 }
 
+async function reviewAndCorrectCode(inputMessage, additionalRequirement = "", brainId, error) {
+    const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
+    const __dirname = dirname(__filename);
+    const filePath = path.join(__dirname, '..', 'docs', 'review.md');
+    try {
+        let systemMessage = await fs.readFile(filePath, 'utf8');
+        systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
+        let userMessage = "";
+        if(error){
+            userMessage = `Please review S4 code and fix if any error found.\n
+Here is ABAP S4 code:\n
+${inputMessage}
+`;
+        } else{
+            userMessage = `I've implemented the S4 code after refactor to SAP system but have some errors when active.\n
+Here errors returned from ATC check:\n
+${error} \n
+Here is ABAP S4 code:\n
+${inputMessage}
+`;
+        }
+        console.log("Reviewing S4 Code...");
+
+        try {
+            const { result, error } = await callLLM(systemMessage, userMessage, brainId);
+            if (error) {
+                throw new Error(`Failed to convert code: ${error.message}`);
+            }
+            if (result) {
+                return result;
+            } else {
+                return '';
+            }
+        } catch (err) {
+            console.error('Error:', err);
+        }
+    } catch (err) {
+        console.error('Error:', err);
+    }
+}
+
 async function callLLM(systemMessage, userMessage, brainId) {
     const body = {
         prompt: userMessage,
@@ -190,7 +231,6 @@ function formatRefactorGuide(jsonData) {
  * @returns {Promise<string>} - The response message.
  */
 export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "") {
-    let impGuideLine = '**Here is implementation guidelines:**\n <abap>1234</abap>';
     const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
     if (option === 'analyze') {
         //return userMessage;
@@ -208,19 +248,15 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
         });
         return output;
     } else if (option === 'review') {
-        let reviewMessage = `Reviewing code for ${objectType} ${objectName}`;
-        if (error) {
-            reviewMessage += ` with error: ${error}`;
-        }
-        reviewMessage += `\n\nCode:\n${userMessage}`;
-
-        // You might want to call the LLM here with this enriched context
-        // For now, returning the constructed message as per previous logic
-        return "Review:\n" + reviewMessage;
+        const review = await reviewAndCorrectCode(userMessage, env.customPrompt || "", brainId, error);
+        const reviewOutput = review.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
+            return `<abap>${code}</abap>`;
+        });
+        return reviewOutput;
     } else if (option === 'apply') {
         return "Apply feature is coming soon.";
     } else {
-        return userMessage;
-        //return await chat(userMessage, env.customPrompt || "", brainId);
+        //return userMessage;
+        return await chat(userMessage, env.customPrompt || "", brainId);
     }
 }
