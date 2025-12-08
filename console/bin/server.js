@@ -99,7 +99,7 @@ async function main() {
   try {
     global.token = await getOAuth2AccessToken();
 
-    if (process.env.PROX) {
+/*     if (process.env.PROX) {
       // Corporate proxy uses CA not in undici's certificate store
       //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
       const dispatcher = new ProxyAgent({
@@ -107,7 +107,7 @@ async function main() {
         token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
       });
       setGlobalDispatcher(dispatcher);
-    }
+    } */
 
     console.log('Token Type:', token.tokenType);
     console.log('Expires In:', token.expiresIn);
