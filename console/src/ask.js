@@ -71,9 +71,7 @@ async function generateSpecification(inputMessage, additionalRequirement = "", b
         let docs = await fs.readFile(docsPath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
-        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.\n 
-${inputMessage}
-`;
+        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.${inputMessage}`;
         console.log("Generating S4 Specification...");
         const { result, error } = await callLLM(systemMessage, userMessage, brainId);
         if (error) {

@@ -749,16 +749,19 @@ document.addEventListener("DOMContentLoaded", () => {
     // If there is an attachment, read it and append to text
     if (currentAttachmentFile) {
       try {
-        const fileContent = await new Promise((resolve, reject) => {
+        let fileContent = await new Promise((resolve, reject) => {
           const reader = new FileReader();
           reader.onload = (event) => resolve(event.target.result);
           reader.onerror = (error) => reject(error);
           reader.readAsText(currentAttachmentFile);
+          //reader.readFile(currentAttachmentFile, 'utf8')
         });
+        fileContent = fileContent.replace(/\r\n/g, '\n');
 
         if (text) {
           text += "\n";
         }
+        
         text += `${fileContent}`;
 
         // Clear attachment after reading
