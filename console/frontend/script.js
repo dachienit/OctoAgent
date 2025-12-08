@@ -756,12 +756,13 @@ document.addEventListener("DOMContentLoaded", () => {
           reader.readAsText(currentAttachmentFile);
           //reader.readFile(currentAttachmentFile, 'utf8')
         });
-        fileContent = fileContent.replace(/\r\n/g, '\n');
+        console.log(`[DEBUG] Read file ${currentAttachmentFile.name}, size: ${currentAttachmentFile.size}, content length: ${fileContent.length}`);
+        fileContent = fileContent.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
 
         if (text) {
           text += "\n";
         }
-        
+
         text += `${fileContent}`;
 
         // Clear attachment after reading

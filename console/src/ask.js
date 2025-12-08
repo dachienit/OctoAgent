@@ -189,6 +189,7 @@ async function callLLM(systemMessage, userMessage, brainId) {
         }
     } catch (error) {
         console.error(`Network or parsing error during LLM call: ${error.message}`);
+        if (error.cause) console.error('Error cause:', error.cause);
         return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
     }
 }
