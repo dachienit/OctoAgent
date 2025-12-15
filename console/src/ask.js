@@ -12,6 +12,7 @@ import { promises } from "node:dns";
 import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
 import { dirname } from 'path';
+import { setGlobalDispatcher, ProxyAgent } from "undici";
 
 marked.use(markedTerminal());
 /**
@@ -112,6 +113,36 @@ async function getTokenCached() {
     };
 
     return tokenCache.accessToken;
+}
+
+async function createHistory(brainId, token) {
+  const url = process.env.DIA_HISTORY + "/" + (brainId || process.env.BRAIN_ID);
+  try {
+    const response = await fetch(url,
+      {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${token}`,
+        },
+      }
+    );
+
+    if (response.status === 200) {
+      const historyId = await response.text();
+      if (historyId) {
+        return historyId;
+      } else {
+        return { error: { message: "LLM response was empty or malformed." } };
+      }
+    } else {
+      const errorText = await response.text();
+      console.error(`LLM API Error ${response.status}: ${errorText}`);
+      return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
+    }
+  } catch (error) {
+    console.error(`Network or parsing error during LLM call: ${error.message}`);
+    return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
+  }
 }
 
 async function chat(inputMessage, additionalRequirement = "", brainId, token, historyID) {
@@ -294,25 +325,45 @@ function formatRefactorGuide(jsonData) {
  * @returns {Promise<string>} - The response message.
  */
 export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "", historyID = "") {
+    let output = "";
+    
     const token = await getTokenCached();
+
+/*     if (process.env.PROX) {
+        // Corporate proxy uses CA not in undici's certificate store
+        //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+        const dispatcher = new ProxyAgent({
+          uri: new URL(process.env.PROX).toString(),
+          token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+        });
+        setGlobalDispatcher(dispatcher);
+    } */
+
+    if(!historyID){
+        historyID = await createHistory(env.brainId, token);
+    }
+
     if (option === 'analyze') {
-        return await generateSpecification(userMessage, env.customPrompt || "", env.brainId, token, historyID);
+        output = await generateSpecification(userMessage, env.customPrompt || "", env.brainId, token, historyID);
     } else if (option === 'refactor') {
-        const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", env.brainId, token, historyID);
-        const output = s4Code.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
+        output = await convertCodeToS4(userMessage, env.customPrompt || "", env.brainId, token, historyID);
+        output = output.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
             return `<abap>${code}</abap>`;
         });
-        return output;
     } else if (option === 'review') {
-        const review = await reviewAndCorrectCode(userMessage, env.customPrompt || "", env.brainId, error, token, historyID);
-        const reviewOutput = review.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
+        output = await reviewAndCorrectCode(userMessage, env.customPrompt || "", env.brainId, error, token, historyID);
+        output = output.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
             return `<abap>${code}</abap>`;
         });
-        return reviewOutput;
     } else if (option === 'apply') {
-        return "Apply feature is coming soon.";
+        output = "Apply feature is coming soon.";
     } else {
         //return userMessage;
-        return await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
+        output = await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
     }
+
+    return {
+        output,
+        historyID
+    };
 }

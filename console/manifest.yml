@@ -1,5 +1,5 @@
 applications:
-  - name: ai-refactor-app-nhv
+  - name: octo-agent
     memory: 256M
     instances: 1
     path: .

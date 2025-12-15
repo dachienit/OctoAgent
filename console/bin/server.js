@@ -67,36 +67,6 @@ async function getOAuth2AccessToken() {
   }
 }
 
-async function createHistory(brainId) {
-  const url = process.env.DIA_HISTORY + "/" + (brainId || process.env.BRAIN_ID);
-  try {
-    const response = await fetch(url,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token.accessToken}`,
-        },
-      }
-    );
-
-    if (response.status === 200) {
-      const historyId = await response.text();
-      if (historyId) {
-        return historyId;
-      } else {
-        return { error: { message: "LLM response was empty or malformed." } };
-      }
-    } else {
-      const errorText = await response.text();
-      console.error(`LLM API Error ${response.status}: ${errorText}`);
-      return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
-    }
-  } catch (error) {
-    console.error(`Network or parsing error during LLM call: ${error.message}`);
-    return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
-  }
-}
-
 async function main() {
   /*   try {
       global.token = await getOAuth2AccessToken();
@@ -212,17 +182,17 @@ async function main() {
         return res.status(400).json({ error: 'Message is required and must be a string' });
       }
 
-      let hisID = "";
+/*       let hisID = "";
       env.brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
       if (reLoad) {
         hisID = await createHistory(env.brainId);
         //hisID = Date.now();
       } else {
         hisID = historyID;
-      }
+      } */
 
       // Call the ask function
-      const response = await ask(option, message, env, objectType, objectName, error, hisID);
+      const { output: response, historyID: hisID }  = await ask(option, message, env, objectType, objectName, error, historyID);
 
       res.json({ reply: response, hisID });
     } catch (error) {
