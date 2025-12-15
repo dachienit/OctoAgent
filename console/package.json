@@ -6,7 +6,6 @@
   "bin": {
     "abap": "bin/index.js"
   },
-  "type": "module",
   "scripts": {
     "start": "node ./bin/server.js",
     "build": "node ./scripts/build.js",

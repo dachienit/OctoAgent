@@ -706,12 +706,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function sendToApi(messageText, env, option = null, reLoad = false, metadata = {}) {
     try {
+      let historyID = "";
+      if (!reLoad) {
+        historyID = sessionStorage.getItem("historyID");
+      }
       const response = await fetch('/api/chat', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ message: messageText, env: env, option: option, reLoad: reLoad, ...metadata }),
+        body: JSON.stringify({ message: messageText, env: env, option: option, reLoad: reLoad, ...metadata, historyID }),
       });
 
       if (!response.ok) {
@@ -720,6 +724,9 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       const data = await response.json();
+      if (reLoad && data.hisID) {
+        sessionStorage.setItem("historyID", data.hisID);
+      }
       return data.reply || messageText;
     } catch (error) {
       console.error('Error sending message to API:', error);

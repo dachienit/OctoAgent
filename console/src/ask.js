@@ -48,9 +48,75 @@ function createHtmlReport(title, bodyContent) {
 </html>`;
 }
 
-async function chat(inputMessage, additionalRequirement = "", brainId) {
+let tokenCache = {
+    accessToken: null,
+    expiresAt: 0
+};
+
+async function getOAuth2AccessToken() {
     try {
-        const { result, error } = await callLLM(additionalRequirement, inputMessage, brainId);
+        // Prepare the OAuth 2.0 request
+        const params = new URLSearchParams();
+        params.append('client_id', process.env.CLIENT_ID);
+        params.append('scope', process.env.SCOPE);
+        params.append('client_secret', process.env.CLIENT_SECRET);
+        params.append('grant_type', process.env.GRANT_TYPE);
+
+        // Make the POST request to get the access token
+        const response = await fetch(process.env.URL_TOKEN, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+            },
+            body: params.toString(),
+        });
+
+        // Check if the request was successful
+        if (!response.ok) {
+            throw new Error(`HTTP error! Status: ${response.status}`);
+        }
+
+        // Parse the response
+        const tokenData = await response.json();
+
+        // Check if access token is present
+        if (!tokenData.access_token) {
+            throw new Error('No access token received in response');
+        }
+
+        return {
+            accessToken: tokenData.access_token,
+            tokenType: tokenData.token_type || 'Bearer',
+            expiresIn: tokenData.expires_in,
+        };
+    } catch (error) {
+        console.error('Error obtaining access token:', error.message);
+        throw error;
+    }
+}
+
+async function getTokenCached() {
+    const now = Date.now();
+
+    // Token is valid
+    if (tokenCache.accessToken && now < tokenCache.expiresAt - 60_000) {
+        return tokenCache.accessToken;
+    }
+
+    // New token
+    const token = await getOAuth2AccessToken();
+
+    tokenCache = {
+        accessToken: token.accessToken,
+        expiresAt: now + token.expiresIn * 1000
+    };
+
+    return tokenCache.accessToken;
+}
+
+async function chat(inputMessage, additionalRequirement = "", brainId, token, historyID) {
+    try {
+        const { result, error } = await callLLM(additionalRequirement, inputMessage, brainId, token, historyID);
         if (error) {
             throw new Error(`Failed to generate specification: ${error.message}`);
         }
@@ -60,7 +126,7 @@ async function chat(inputMessage, additionalRequirement = "", brainId) {
     }
 }
 
-async function generateSpecification(inputMessage, additionalRequirement = "", brainId) {
+async function generateSpecification(inputMessage, additionalRequirement = "", brainId, token, historyID) {
     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
     const __dirname = dirname(__filename);
     const filePath = path.join(__dirname, '..', 'docs', 'analysis.md');
@@ -71,9 +137,9 @@ async function generateSpecification(inputMessage, additionalRequirement = "", b
         let docs = await fs.readFile(docsPath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{docs\}/g, docs);
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
-        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification.${inputMessage}`;
+        const userMessage = `Analyze the following R3 ABAP source code and generate the S4 specification. ${inputMessage}`;
         console.log("Generating S4 Specification...");
-        const { result, error } = await callLLM(systemMessage, userMessage, brainId);
+        const { result, error } = await callLLM(systemMessage, userMessage, brainId, token, historyID);
         if (error) {
             throw new Error(`Failed to generate specification: ${error.message}`);
         }
@@ -83,19 +149,18 @@ async function generateSpecification(inputMessage, additionalRequirement = "", b
     }
 }
 
-async function convertCodeToS4(inputMessage, additionalRequirement = "", brainId) {
+async function convertCodeToS4(inputMessage, additionalRequirement = "", brainId, token, historyID) {
     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
     const __dirname = dirname(__filename);
     const filePath = path.join(__dirname, '..', 'docs', 'refactor.md');
     try {
         let systemMessage = await fs.readFile(filePath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
-        const userMessage = `OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.\n 
-${inputMessage}
-`;
+        const userMessage = `OK, base on this Technical Specification, please do the refactor R3 code to S4 ABAP 7.5+ with new syntax, check and fix syntax error if any.
+${inputMessage}`;
         console.log("Converting R3 Code to S4...");
         try {
-            const { result, error } = await callLLM(systemMessage, userMessage, brainId);
+            const { result, error } = await callLLM(systemMessage, userMessage, brainId, token, historyID);
             if (error) {
                 throw new Error(`Failed to convert code: ${error.message}`);
             }
@@ -112,7 +177,7 @@ ${inputMessage}
     }
 }
 
-async function reviewAndCorrectCode(inputMessage, additionalRequirement = "", brainId, error) {
+async function reviewAndCorrectCode(inputMessage, additionalRequirement = "", brainId, error, token, historyID) {
     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
     const __dirname = dirname(__filename);
     const filePath = path.join(__dirname, '..', 'docs', 'review.md');
@@ -120,23 +185,22 @@ async function reviewAndCorrectCode(inputMessage, additionalRequirement = "", br
         let systemMessage = await fs.readFile(filePath, 'utf8');
         systemMessage = systemMessage.replace(/\$\{additionalRequirement\}/g, additionalRequirement);
         let userMessage = "";
-        if (error) {
-            userMessage = `Please review S4 code and fix if any error found.\n
-Here is ABAP S4 code:\n
+        if (!error) {
+            userMessage = `Please review S4 code and fix if any error found.
+Here is ABAP S4 code:
 ${inputMessage}
 `;
         } else {
-            userMessage = `I've implemented the S4 code after refactor to SAP system but have some errors when active.\n
-Here errors returned from ATC check:\n
-${error} \n
-Here is ABAP S4 code:\n
-${inputMessage}
-`;
+            userMessage = `I've implemented the S4 code after refactor to SAP system but have some errors when active.
+Here errors returned from ATC check:
+${error}
+Here is ABAP S4 code:
+${inputMessage}`;
         }
         console.log("Reviewing S4 Code...");
 
         try {
-            const { result, error } = await callLLM(systemMessage, userMessage, brainId);
+            const { result, error } = await callLLM(systemMessage, userMessage, brainId, token, historyID);
             if (error) {
                 throw new Error(`Failed to convert code: ${error.message}`);
             }
@@ -153,7 +217,7 @@ ${inputMessage}
     }
 }
 
-async function callLLM(systemMessage, userMessage, brainId) {
+async function callLLM(systemMessage, userMessage, brainId, token, historyID) {
     const body = {
         prompt: userMessage,
         customMessageBehaviour: systemMessage,
@@ -167,7 +231,7 @@ async function callLLM(systemMessage, userMessage, brainId) {
             {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${token.accessToken}`,
+                    "Authorization": `Bearer ${token}`,
                     "Content-Type": "application/json",
                     "Accept": "application/json"
                 },
@@ -229,25 +293,18 @@ function formatRefactorGuide(jsonData) {
  * @param {string} userMessage - The message from the user.
  * @returns {Promise<string>} - The response message.
  */
-export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "") {
-    const brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
+export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "", historyID = "") {
+    const token = await getTokenCached();
     if (option === 'analyze') {
-        //return userMessage;
-        return await generateSpecification(userMessage, env.customPrompt || "", brainId);
+        return await generateSpecification(userMessage, env.customPrompt || "", env.brainId, token, historyID);
     } else if (option === 'refactor') {
-        const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", brainId);
-        /* const s4CodeJson = parseDirtyJson(s4Code);
-        if (s4CodeJson) {
-            return impGuideLine + formatRefactorGuide(s4CodeJson);
-        } else {
-            return "Error: Failed to parse refactor guide from LLM response.";
-        } */
+        const s4Code = await convertCodeToS4(userMessage, env.customPrompt || "", env.brainId, token, historyID);
         const output = s4Code.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
             return `<abap>${code}</abap>`;
         });
         return output;
     } else if (option === 'review') {
-        const review = await reviewAndCorrectCode(userMessage, env.customPrompt || "", brainId, error);
+        const review = await reviewAndCorrectCode(userMessage, env.customPrompt || "", env.brainId, error, token, historyID);
         const reviewOutput = review.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
             return `<abap>${code}</abap>`;
         });
@@ -256,6 +313,6 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
         return "Apply feature is coming soon.";
     } else {
         //return userMessage;
-        return await chat(userMessage, env.customPrompt || "", brainId);
+        return await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
     }
 }

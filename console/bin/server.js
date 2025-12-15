@@ -23,6 +23,8 @@ dotenv.config({ path: envPath });
 
 process.env.NODE_NO_WARNINGS = 1;
 
+//sessionStorage.removeItem("historyID");
+
 async function getOAuth2AccessToken() {
   try {
     // Prepare the OAuth 2.0 request
@@ -96,24 +98,24 @@ async function createHistory(brainId) {
 }
 
 async function main() {
-  try {
-    global.token = await getOAuth2AccessToken();
-
-    if (process.env.PROX) {
-      // Corporate proxy uses CA not in undici's certificate store
-      //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-      const dispatcher = new ProxyAgent({
-        uri: new URL(process.env.PROX).toString(),
-        token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
-      });
-      setGlobalDispatcher(dispatcher);
-    }
-
-    console.log('Token Type:', token.tokenType);
-    console.log('Expires In:', token.expiresIn);
-  } catch (error) {
-    console.error('Failed to authenticate:', error.message);
-  }
+  /*   try {
+      global.token = await getOAuth2AccessToken();
+  
+      if (process.env.PROX) {
+        // Corporate proxy uses CA not in undici's certificate store
+        //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+        const dispatcher = new ProxyAgent({
+          uri: new URL(process.env.PROX).toString(),
+          token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+        });
+        setGlobalDispatcher(dispatcher);
+      }
+  
+      console.log('Token Type:', token.tokenType);
+      console.log('Expires In:', token.expiresIn);
+    } catch (error) {
+      console.error('Failed to authenticate:', error.message);
+    } */
 
   // Setup Express server
   const app = express();
@@ -202,7 +204,7 @@ async function main() {
 
   app.post('/api/chat', async (req, res) => {
     try {
-      const { message, env, option, reLoad, objectType, objectName, error } = req.body;
+      const { message, env, option, reLoad, objectType, objectName, error, historyID } = req.body;
 
       // If option is present, message can be empty (e.g. @refactor might not need text if it uses context or just returns a template)
       // If option is NOT present, message is required.
@@ -210,33 +212,19 @@ async function main() {
         return res.status(400).json({ error: 'Message is required and must be a string' });
       }
 
+      let hisID = "";
+      env.brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
       if (reLoad) {
-        /* try {
-          global.token = await getOAuth2AccessToken();
-
-          if (process.env.PROX) {
-            // Corporate proxy uses CA not in undici's certificate store
-            //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-            const dispatcher = new ProxyAgent({
-              uri: new URL(process.env.PROX).toString(),
-              token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
-            });
-            setGlobalDispatcher(dispatcher);
-          }
-
-          console.log('Token Type:', token.tokenType);
-          console.log('Expires In:', token.expiresIn);
-        } catch (error) {
-          console.error('Failed to authenticate:', error.message);
-        } */
-
-        global.historyID = await createHistory(env.BRAIN_ID)
+        hisID = await createHistory(env.brainId);
+        //hisID = Date.now();
+      } else {
+        hisID = historyID;
       }
 
       // Call the ask function
-      const response = await ask(option, message, env, objectType, objectName, error);
+      const response = await ask(option, message, env, objectType, objectName, error, hisID);
 
-      res.json({ reply: response });
+      res.json({ reply: response, hisID });
     } catch (error) {
       console.error('Error in /api/chat:', error);
       res.status(500).json({ error: 'Internal server error', message: error.message });
