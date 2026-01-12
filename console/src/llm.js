@@ -18,7 +18,7 @@ var docs = "";
     console.error(`Error reading documentation file: ${err.message}`);
 } */
 
-async function callLLM(systemMessage, userMessage, historyID) {
+async function callLLM(systemMessage, userMessage, historyID, token) {
     const body = {
         prompt: userMessage,
         customMessageBehaviour: systemMessage,
@@ -32,7 +32,7 @@ async function callLLM(systemMessage, userMessage, historyID) {
             {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${token.accessToken}`,
+                    "Authorization": `Bearer ${token}`,
                     "Content-Type": "application/json",
                     "Accept": "application/json"
                 },
@@ -64,16 +64,14 @@ async function callLLM(systemMessage, userMessage, historyID) {
  * @param {string} [additionalRequirement=""] - User-specified additional requirements.
  * @returns {Promise<string>} - The generated S4 specification.
  */
-async function generateSpecification(r3SourceCode, additionalRequirement = "", historyID) {
-    /* const __filename = fileURLToPath(import.meta.url);
+async function generateSpecification(r3SourceCode, additionalRequirement = "", historyID, token) {
+    const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const filePath = path.join(
         __dirname,
         '..',
         'docs',
-        'Decomposed AI Architecture.md'
-        //'S4_Refactor_Prompt.md'
-        //'testcase-prompt.md'
+        'analysis.md'
     );
 
     try {
@@ -85,14 +83,14 @@ async function generateSpecification(r3SourceCode, additionalRequirement = "", h
                              Here is ABAP R3 source code: \n\`\`\`abap\n${r3SourceCode}\n\`\`\`
                             `;
         console.log("Generating S4 Specification...");
-        const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+        const { result, error } = await callLLM(systemMessage, userMessage, historyID, token);
         if (error) {
             throw new Error(`Failed to generate specification: ${error.message}`);
         }
         return result;
     } catch (err) {
         console.error('Error:', err);
-    } */
+    }
     return "";
 }
 
@@ -103,12 +101,12 @@ async function generateSpecification(r3SourceCode, additionalRequirement = "", h
  * @param {string} [additionalRequirement=""] - User-specified additional requirements.
  * @returns {Promise<string>} - The generated S4 ABAP code.
  */
-async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirement = "", historyID) {
-    /* const filePath = path.join(
+async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirement = "", historyID, token) {
+    const filePath = path.join(
         __dirname,
         '..',
         'docs',
-        'S4_Refactor_Prompt.md'
+        'refactorTerminal.md'
     );
     let systemMessage = fs.readFileSync(filePath, 'utf8');
 
@@ -117,7 +115,7 @@ async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirem
     console.log("Converting R3 Code to S4...");
 
     try {
-        const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+        const { result, error } = await callLLM(systemMessage, userMessage, historyID, token);
         if (error) {
             throw new Error(`Failed to convert code: ${error.message}`);
         }
@@ -128,7 +126,7 @@ async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirem
         }
     } catch (err) {
         console.error('Error:', err);
-    } */
+    }
     return "";
 }
 
@@ -140,14 +138,14 @@ async function convertCodeToS4(r3SourceCode, s4Specification, additionalRequirem
  * @param {string} [additionalRequirement=""] - User-specified additional requirements.
  * @returns {Promise<{reviewReport: string, needsCorrection: boolean}>} - A review report and a flag indicating if corrections are needed.
  */
-async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID) {
-    /* const __filename = fileURLToPath(import.meta.url);
+async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID, token) {
+    const __filename = fileURLToPath(import.meta.url);
     const __dirname = path.dirname(__filename);
     const filePath = path.join(
         __dirname,
         '..',
         'docs',
-        'QA_Final_Guide_Generation.md'
+        'reviewTerminal.md'
     );
     const systemMessage = fs.readFileSync(filePath, 'utf8');
     const userMessage = `I've implemented the S4 code after refactor to SAP system in Eclipse but have some errors when active. Please check and fix. Here is json for errors returned from ATC check:\n ${issueLog}`;
@@ -155,7 +153,7 @@ async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID) {
     console.log("Reviewing S4 Code...");
 
     try {
-        const { result, error } = await callLLM(systemMessage, userMessage, historyID);
+        const { result, error } = await callLLM(systemMessage, userMessage, historyID, token);
         if (error) {
             throw new Error(`Failed to convert code: ${error.message}`);
         }
@@ -166,18 +164,18 @@ async function reviewAndCorrectCode(issueLog, r3SourceCode, historyID) {
         }
     } catch (err) {
         console.error('Error:', err);
-    } */
+    }
     return "";
 }
 
-async function createHistory() {
+async function createHistory(token) {
     const url = process.env.DIA_HISTORY + "/" + process.env.BRAIN_ID
     try {
         const response = await fetch(url,
             {
                 method: "POST",
                 headers: {
-                    "Authorization": `Bearer ${token.accessToken}`,
+                    "Authorization": `Bearer ${token}`,
                 },
             }
         );
@@ -286,7 +284,7 @@ function extractBlocks(markdown) {
  * @param {Array<Object>} history - An array to maintain the overall conversation history (optional).
  * @returns {Promise<Object>} - An object containing the final S4 code, review report, and history.
  */
-export async function llmService(r3SourceCode, additionalRequirement = "Z_", history = [], packageName, transportNumber) { // Changed signature
+export async function llmService(r3SourceCode, additionalRequirement = "Z_", history = [], packageName, transportNumber, token) { // Changed signature
     let currentHistory = [...history];
 
     try {
@@ -304,15 +302,15 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
         docs = docs.replace(/\$\{nameSpace\}/g, additionalRequirement);
 
         // Create chat history
-        const historyID = await createHistory();
+        const historyID = await createHistory(token);
 
         // Phase 1: Generate Specification
-        const specification = await generateSpecification(r3SourceCode, additionalRequirement, historyID); // Pass additionalRequirement
+        const specification = await generateSpecification(r3SourceCode, additionalRequirement, historyID, token); // Pass additionalRequirement
         currentHistory.push({ "role": "assistant", "content": `**Generated S4 Specification:**\n${specification}` });
         console.log("Specification Generated successfully.");
 
         // Phase 2: Convert Code
-        let s4Code = await convertCodeToS4(r3SourceCode, specification, additionalRequirement, historyID); // Pass additionalRequirement
+        let s4Code = await convertCodeToS4(r3SourceCode, specification, additionalRequirement, historyID, token); // Pass additionalRequirement
         currentHistory.push({ "role": "assistant", "content": `**Initial S4 Code Conversion:**\n\`\`\`abap\n${s4Code}\n\`\`\`` });
         console.log("Initial S4 Code Converted successfully.");
 
@@ -374,7 +372,7 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                 while (reviewIteration < MAX_REVIEW_ITERATIONS) {
                     try {
                         console.log(`Starting Code Review Iteration ${reviewIteration + 1}...`);
-                        let s4CodeReview = await reviewAndCorrectCode(issueLogString, r3SourceCode, historyID);
+                        let s4CodeReview = await reviewAndCorrectCode(issueLogString, r3SourceCode, historyID, token);
                         if (!s4CodeReview) {
                             // Push unit test to system
                             if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {

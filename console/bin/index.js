@@ -1,7 +1,7 @@
 #!/usr/bin/env NODE_OPTIONS=--no-warnings node
 
 import inquirer from "inquirer";
-import { ask } from "../src/ask.js";
+import { ask } from "../src/askTerminal.js";
 import { init } from "../src/init.js";
 import figlet from "figlet";
 import chalk from "chalk";
@@ -64,7 +64,7 @@ const examples = {
   "Refactor": ask
 };
 
-try {
+/* try {
     global.token = await getOAuth2AccessToken();
     //console.log('Access Token:', token.accessToken);
 
@@ -81,7 +81,7 @@ try {
     console.log('Expires In:', token.expiresIn);
   } catch (error) {
     console.error('Failed to authenticate:', error.message);
-  }
+  } */
 
 
 console.log(
