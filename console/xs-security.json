@@ -1,0 +1,19 @@
+{
+    "xsappname": "octo-agent",
+    "tenant-mode": "dedicated",
+    "scopes": [
+        {
+            "name": "$XSAPPNAME.user",
+            "description": "Authenticated user"
+        }
+    ],
+    "role-templates": [
+        {
+            "name": "User",
+            "description": "Basic access",
+            "scope-references": [
+                "$XSAPPNAME.user"
+            ]
+        }
+    ]
+}

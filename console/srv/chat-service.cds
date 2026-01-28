@@ -15,6 +15,9 @@ service ChatService @(impl: './chat-service.cjs', path: '/api') {
 
   type UserInfo {
     username : String;
+    email : String;
+    firstName : String;
+    lastName : String;
   }
 
   type SkillContent {

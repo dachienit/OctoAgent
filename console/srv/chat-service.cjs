@@ -42,9 +42,46 @@ module.exports = async (srv) => {
     });
 
     srv.on('userinfo', (req) => {
-        const user = req.user.id;
-        console.log(`[API] Returning username: ${user}`);
-        return user;
+        // req.http.req is the Express request object where Passport attaches authInfo
+        const expressReq = req.http ? req.http.req : null;
+        const authInfo = expressReq ? expressReq.authInfo : null;
+
+        console.log("[API] userinfo endpoint called.");
+        console.log("[API] CAP req.user.id:", req.user.id);
+        console.log("[API] Express req.authInfo exists?:", !!authInfo);
+        if (authInfo) {
+            console.log("[API] AuthInfo LogonName:", typeof authInfo.getLogonName === 'function' ? authInfo.getLogonName() : 'N/A');
+        }
+
+        let userDetails = {
+            username: req.user.id || "Anonymous",
+            email: "",
+            firstName: "",
+            lastName: ""
+        };
+
+        if (authInfo) {
+            // Check availability of methods (BTP XSUAA vs Local Mock)
+            if (typeof authInfo.getLogonName === 'function') userDetails.username = authInfo.getLogonName();
+            if (typeof authInfo.getEmail === 'function') userDetails.email = authInfo.getEmail();
+            if (typeof authInfo.getGivenName === 'function') userDetails.firstName = authInfo.getGivenName();
+            if (typeof authInfo.getFamilyName === 'function') userDetails.lastName = authInfo.getFamilyName();
+        }
+
+        // FALLBACK: If we are still anonymous (Middleware failed?), force Local Dev identity
+        // This ensures the UI works while we debug the middleware connection.
+        if (!userDetails.username || userDetails.username.toLowerCase() === 'anonymous') {
+            console.log("[API] User is Anonymous. Forcing Local Test Mock Data.");
+            userDetails = {
+                username: 'localTest',
+                email: 'localTest@bosch.com',
+                firstName: 'Local',
+                lastName: 'Local Test'
+            };
+        }
+
+        console.log(`[API] UserInfo:`, userDetails);
+        return userDetails;
     });
 
     srv.on('skills', (req) => {

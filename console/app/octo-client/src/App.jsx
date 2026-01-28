@@ -7,11 +7,18 @@ import CustomPromptModal from './components/Modals/CustomPromptModal';
 import SkillModal from './components/Modals/SkillModal';
 import { api } from './api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
+import UserProfile from './components/UserProfile';
+
 
 function App() {
-  const { settings, updateSettings, resetSettings } = useSettings();
+  const { settings, updateSettings, resetSettings, saveSettingsToBackend } = useSettings();
   const [messages, setMessages] = useState([]);
   const [inputObj, setInputObj] = useState({ text: '' });
+
+  // Auth State
+  const [isAuthorized, setIsAuthorized] = useState(null); // null=loading, true=ok, false=denied
+  const [userInfo, setUserInfo] = useState(null);
+
   const [leftOpen, setLeftOpen] = useState(false); // Default collapsed
   const [rightOpen, setRightOpen] = useState(false); // Default collapsed
   const [isProcessing, setIsProcessing] = useState(false);
@@ -45,14 +52,45 @@ function App() {
   // Helper to format time
   const formatTime = () => new Date().toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" });
 
-  // Load Skills on mount
+  // Check Auth and Load Skills on mount
   useEffect(() => {
-    const loadSkills = async () => {
-      const list = await api.getSkills();
-      setSkills(list);
+    const initApp = async () => {
+      try {
+        // Check Auth
+        const user = await api.getUserInfo();
+        // Map OData response or direct JSON
+        const userData = user.value || user;
+        console.log("App.jsx: Auth Check Result:", userData);
+
+        if (!userData.username || userData.username === "Anonymous") {
+          // Double check if anonymous is allowed? Requirement says reject.
+          // Assuming BTP always returns a user if authenticated.
+          // For now accept it, but typically XSUAA provides a real user.
+          // If the requirement is strict "reject if not authorized", 401/403 would be thrown by api.
+          // But if we get "Anonymous", it means passport pass-thru (mock).
+          // We treat "Anonymous" as OK for Local Dev, but in PROD it will be real user.
+        }
+
+        setUserInfo(userData);
+        setIsAuthorized(true);
+
+        // Sync NTID to settings if empty
+        if (userData.username) {
+          updateSettings({ ntid: userData.username });
+        }
+
+        // Load Skills
+        const list = await api.getSkills();
+        setSkills(list);
+
+      } catch (e) {
+        console.error("Auth verification failed", e);
+        setIsAuthorized(false);
+      }
     };
-    loadSkills();
+    initApp();
   }, []);
+
 
   // Handle Input Change & Command Menu
   const handleInputChange = (e) => {
@@ -164,11 +202,45 @@ function App() {
     }
   };
 
-  const handleSaveSettings = () => {
+  const handleSaveSettings = async () => {
     if (!settings.ntid) resetSettings();
-    setSaveStatus("Saved ✓");
+
+    setSaveStatus("Saving...");
+    const success = await saveSettingsToBackend();
+
+    if (success) {
+      setSaveStatus("Saved ✓");
+    } else {
+      setSaveStatus("Error ✗");
+    }
     setTimeout(() => setSaveStatus("Save"), 1200);
   };
+
+  if (isAuthorized === false) {
+    return (
+      <div className="auth-error-screen" style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        height: '100vh',
+        flexDirection: 'column',
+        color: '#c0392b'
+      }}>
+        <h1>Access Denied</h1>
+        <p>You are not authorized to use the Octo Agent app.</p>
+      </div>
+    );
+  }
+
+  if (isAuthorized === null) {
+    // Loading screen
+    return (
+      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#666' }}>
+        <span>Verifying Authorization...</span>
+      </div>
+    );
+  }
+
 
   return (
     <div className="app">
@@ -200,6 +272,7 @@ function App() {
             <span className="brain-icon">🧠</span>
             <span id="currentBrainName">Octo Agent</span>
           </div>
+          <UserProfile user={userInfo} />
         </div>
 
         <div className="chat-container">

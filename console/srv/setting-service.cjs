@@ -21,6 +21,7 @@ module.exports = async (srv) => {
             await UPDATE(UserEnv)
                 .set({
                     brainId: data.brainId,
+                    theme: data.theme,
                     customPrompt: data.customPrompt,
                     updatedAt: new Date()
                 })

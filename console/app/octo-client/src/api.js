@@ -27,6 +27,12 @@ export const api = {
         }
     },
 
+    getUserInfo: async () => {
+        const res = await fetch('/api/userinfo()');
+        if (!res.ok) throw new Error("Unauthorized");
+        return await res.json();
+    },
+
     getSkills: async () => {
         const res = await fetch('/api/skills()'); // Function import in OData v4 often uses parens, or standard GET if mapped
         // CAP by default maps functions to GET /api/skills

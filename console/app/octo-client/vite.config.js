@@ -10,6 +10,11 @@ export default defineConfig({
         target: 'http://localhost:4004',
         changeOrigin: true,
         secure: false,
+      },
+      '/settings': {
+        target: 'http://localhost:4004',
+        changeOrigin: true,
+        secure: false,
       }
     }
   }
