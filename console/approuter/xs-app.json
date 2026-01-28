@@ -19,8 +19,7 @@
         {
             "source": "^(.*)$",
             "localDir": "resources",
-            "authenticationType": "xsuaa",
-            "replaceOnImport": false
+            "authenticationType": "xsuaa"
         }
     ]
 }
