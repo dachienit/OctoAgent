@@ -8,8 +8,8 @@
     "abap": "bin/index.js"
   },
   "scripts": {
-    "start": "cds watch",
-    "watch": "cds watch",
+    "start": "npx cds watch",
+    "watch": "npx cds watch",
     "dev:client": "npm run dev --prefix app/octo-client",
     "build:client": "npm run build --prefix app/octo-client",
     "test": "echo \"Error: no test specified\" && exit 1"
