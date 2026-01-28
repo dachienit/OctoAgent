@@ -11,7 +11,7 @@
     "start": "cds serve",
     "watch": "cds watch",
     "build": "npm run build:client",
-    "postinstall": "npm install --prefix app/octo-client && npm run build:client",
+    "postinstall": "npm install --include=dev --prefix app/octo-client && npm run build:client",
     "dev:client": "npm run dev --prefix app/octo-client",
     "build:client": "npm run build --prefix app/octo-client",
     "test": "echo \"Error: no test specified\" && exit 1"
