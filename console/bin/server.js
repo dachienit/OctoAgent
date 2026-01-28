@@ -25,68 +25,7 @@ process.env.NODE_NO_WARNINGS = 1;
 
 //sessionStorage.removeItem("historyID");
 
-async function getOAuth2AccessToken() {
-  try {
-    // Prepare the OAuth 2.0 request
-    const params = new URLSearchParams();
-    params.append('client_id', process.env.CLIENT_ID);
-    params.append('scope', process.env.SCOPE);
-    params.append('client_secret', process.env.CLIENT_SECRET);
-    params.append('grant_type', process.env.GRANT_TYPE);
-
-    // Make the POST request to get the access token
-    const response = await fetch(process.env.URL_TOKEN, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded',
-      },
-      body: params.toString(),
-    });
-
-    // Check if the request was successful
-    if (!response.ok) {
-      throw new Error(`HTTP error! Status: ${response.status}`);
-    }
-
-    // Parse the response
-    const tokenData = await response.json();
-
-    // Check if access token is present
-    if (!tokenData.access_token) {
-      throw new Error('No access token received in response');
-    }
-
-    return {
-      accessToken: tokenData.access_token,
-      tokenType: tokenData.token_type || 'Bearer',
-      expiresIn: tokenData.expires_in,
-    };
-  } catch (error) {
-    console.error('Error obtaining access token:', error.message);
-    throw error;
-  }
-}
-
 async function main() {
-  /*   try {
-      global.token = await getOAuth2AccessToken();
-  
-      if (process.env.PROX) {
-        // Corporate proxy uses CA not in undici's certificate store
-        //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-        const dispatcher = new ProxyAgent({
-          uri: new URL(process.env.PROX).toString(),
-          token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
-        });
-        setGlobalDispatcher(dispatcher);
-      }
-  
-      console.log('Token Type:', token.tokenType);
-      console.log('Expires In:', token.expiresIn);
-    } catch (error) {
-      console.error('Failed to authenticate:', error.message);
-    } */
-
   // Setup Express server
   const app = express();
   const PORT = process.env.PORT || 3000;
@@ -163,7 +102,7 @@ async function main() {
   app.post('/api/refresh-token', async (req, res) => {
     try {
       console.log('[API] Refreshing token...');
-      global.token = await getOAuth2AccessToken();
+      //global.token = await getOAuth2AccessToken();
       console.log('[API] Token refreshed successfully');
       res.json({ success: true, expiresIn: global.token.expiresIn });
     } catch (error) {
@@ -182,17 +121,8 @@ async function main() {
         return res.status(400).json({ error: 'Message is required and must be a string' });
       }
 
-/*       let hisID = "";
-      env.brainId = (env && env.brainId) ? env.brainId : process.env.BRAIN_ID;
-      if (reLoad) {
-        hisID = await createHistory(env.brainId);
-        //hisID = Date.now();
-      } else {
-        hisID = historyID;
-      } */
-
       // Call the ask function
-      const { output: response, historyID: hisID }  = await ask(option, message, env, objectType, objectName, error, historyID);
+      const { output: response, historyID: hisID } = await ask(option, message, env, objectType, objectName, error, historyID);
 
       res.json({ reply: response, hisID });
     } catch (error) {

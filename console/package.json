@@ -1,15 +1,28 @@
 {
   "name": "octo-console",
   "version": "0.0.1",
+  "type": "module",
   "description": "Engineering Advocate",
   "main": "src/index.js",
   "bin": {
     "abap": "bin/index.js"
   },
   "scripts": {
-    "start": "node ./bin/server.js",
-    "build": "node ./scripts/build.js",
+    "start": "cds watch",
+    "watch": "cds watch",
+    "dev:client": "npm run dev --prefix app/octo-client",
+    "build:client": "npm run build --prefix app/octo-client",
     "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "cds": {
+    "requires": {
+      "db": {
+        "kind": "sqlite",
+        "credentials": {
+          "database": ":memory:"
+        }
+      }
+    }
   },
   "engines": {
     "node": ">=18.x"
@@ -17,7 +30,9 @@
   "author": "Hien, Culen, Vinh, Billy, Nhan, Nhi, Hau",
   "license": "UNLICENSED",
   "dependencies": {
+    "@cap-js/sqlite": "^2.1.2",
     "@sap-ai-sdk/foundation-models": "^1.13.0",
+    "@sap/cds": "^9.6.4",
     "abap-adt-api": "^6.2.1",
     "chalk": "^5.6.2",
     "commander": "^12.1.0",

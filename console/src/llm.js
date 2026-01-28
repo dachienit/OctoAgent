@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import { fileURLToPath } from 'url';
-import { dirname } from 'path';
+// import { dirname } from 'path';
 import path from 'node:path';
 import { readFile } from 'fs/promises';
 import { createUnitText } from "./createUnitTestClass.js";
@@ -9,7 +9,7 @@ import { MCPClient } from "./MCPClient.js";
 import { findMCPrepo } from "./findMCP.js";
 
 const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
-const __dirname = dirname(__filename);
+const __dirname = path.dirname(__filename);
 
 var docs = "";
 /* try {

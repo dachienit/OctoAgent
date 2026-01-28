@@ -11,7 +11,7 @@ import axios from 'axios';
 import { promises } from "node:dns";
 import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
-import { dirname } from 'path';
+// import { dirname } from 'path'; // Removed invalid import
 import { setGlobalDispatcher, ProxyAgent } from "undici";
 
 marked.use(markedTerminal());
@@ -116,33 +116,33 @@ async function getTokenCached() {
 }
 
 async function createHistory(brainId, token) {
-  const url = process.env.DIA_HISTORY + "/" + (brainId || process.env.BRAIN_ID);
-  try {
-    const response = await fetch(url,
-      {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`,
-        },
-      }
-    );
+    const url = process.env.DIA_HISTORY + "/" + (brainId || process.env.BRAIN_ID);
+    try {
+        const response = await fetch(url,
+            {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${token}`,
+                },
+            }
+        );
 
-    if (response.status === 200) {
-      const historyId = await response.text();
-      if (historyId) {
-        return historyId;
-      } else {
-        return { error: { message: "LLM response was empty or malformed." } };
-      }
-    } else {
-      const errorText = await response.text();
-      console.error(`LLM API Error ${response.status}: ${errorText}`);
-      return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
+        if (response.status === 200) {
+            const historyId = await response.text();
+            if (historyId) {
+                return historyId;
+            } else {
+                return { error: { message: "LLM response was empty or malformed." } };
+            }
+        } else {
+            const errorText = await response.text();
+            console.error(`LLM API Error ${response.status}: ${errorText}`);
+            return { error: { message: `LLM API Error: ${response.statusText} - ${errorText}` } };
+        }
+    } catch (error) {
+        console.error(`Network or parsing error during LLM call: ${error.message}`);
+        return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
     }
-  } catch (error) {
-    console.error(`Network or parsing error during LLM call: ${error.message}`);
-    return { error: { message: `Network or parsing error during LLM call: ${error.message}` } };
-  }
 }
 
 async function chat(inputMessage, additionalRequirement = "", brainId, token, historyID) {
@@ -159,7 +159,7 @@ async function chat(inputMessage, additionalRequirement = "", brainId, token, hi
 
 async function generateSpecification(inputMessage, additionalRequirement = "", brainId, token, historyID) {
     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
-    const __dirname = dirname(__filename);
+    const __dirname = path.dirname(__filename);
     const filePath = path.join(__dirname, '..', 'docs', 'analysis.md');
     const docsPath = path.join(__dirname, '..', 'docs', 'index.txt');
 
@@ -182,7 +182,7 @@ async function generateSpecification(inputMessage, additionalRequirement = "", b
 
 async function convertCodeToS4(inputMessage, additionalRequirement = "", brainId, token, historyID) {
     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
-    const __dirname = dirname(__filename);
+    const __dirname = path.dirname(__filename);
     const filePath = path.join(__dirname, '..', 'docs', 'refactor.md');
     try {
         let systemMessage = await fs.readFile(filePath, 'utf8');
@@ -210,7 +210,7 @@ ${inputMessage}`;
 
 async function reviewAndCorrectCode(inputMessage, additionalRequirement = "", brainId, error, token, historyID) {
     const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
-    const __dirname = dirname(__filename);
+    const __dirname = path.dirname(__filename);
     const filePath = path.join(__dirname, '..', 'docs', 'review.md');
     try {
         let systemMessage = await fs.readFile(filePath, 'utf8');
@@ -326,20 +326,20 @@ function formatRefactorGuide(jsonData) {
  */
 export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "", historyID = "") {
     let output = "";
-    
+
     const token = await getTokenCached();
 
-/*     if (process.env.PROX) {
-        // Corporate proxy uses CA not in undici's certificate store
-        //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-        const dispatcher = new ProxyAgent({
-          uri: new URL(process.env.PROX).toString(),
-          token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
-        });
-        setGlobalDispatcher(dispatcher);
-    } */
+    /*     if (process.env.PROX) {
+            // Corporate proxy uses CA not in undici's certificate store
+            //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+            const dispatcher = new ProxyAgent({
+              uri: new URL(process.env.PROX).toString(),
+              token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+            });
+            setGlobalDispatcher(dispatcher);
+        } */
 
-    if(!historyID){
+    if (!historyID) {
         historyID = await createHistory(env.brainId, token);
     }
 
