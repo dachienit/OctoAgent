@@ -8,8 +8,8 @@
     "abap": "bin/index.js"
   },
   "scripts": {
-    "start": "npx cds watch",
-    "watch": "npx cds watch",
+    "start": "cds watch",
+    "watch": "cds watch",
     "dev:client": "npm run dev --prefix app/octo-client",
     "build:client": "npm run build --prefix app/octo-client",
     "test": "echo \"Error: no test specified\" && exit 1"
@@ -31,6 +31,7 @@
   "license": "UNLICENSED",
   "dependencies": {
     "@cap-js/sqlite": "^2.1.2",
+    "@sap/cds-dk": "^9.6.1",
     "@sap-ai-sdk/foundation-models": "^1.13.0",
     "@sap/cds": "^9.6.4",
     "abap-adt-api": "^6.2.1",
@@ -58,7 +59,6 @@
   },
   "keywords": [],
   "devDependencies": {
-    "@sap/cds-dk": "^9.6.1",
     "esbuild": "^0.27.0",
     "pkg": "^5.8.1"
   }
