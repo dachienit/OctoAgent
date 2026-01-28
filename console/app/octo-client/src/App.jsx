@@ -24,6 +24,18 @@ function App() {
   // Commands
   const [showCommandMenu, setShowCommandMenu] = useState(false);
 
+  // Refs for UI behavior
+  const textareaRef = useRef(null);
+  const lastMessageRef = useRef(null);
+
+  // Auto-scroll to latest message
+  useEffect(() => {
+    if (lastMessageRef.current) {
+      lastMessageRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [messages.length, isProcessing]); // Trigger on new message or processing state change
+
+
   // Settings / Modals
   const [skills, setSkills] = useState([]);
   const [isPromptModalOpen, setIsPromptModalOpen] = useState(false);
@@ -64,6 +76,7 @@ function App() {
       setInputObj({ ...inputObj, text: newVal });
     }
     setShowCommandMenu(false);
+    textareaRef.current?.focus(); // Restore focus to input
   };
 
   // Attachments
@@ -204,6 +217,7 @@ function App() {
             {messages.map((msg, idx) => (
               <MessageBubble
                 key={idx}
+                ref={idx === messages.length - 1 ? lastMessageRef : null}
                 role={msg.role}
                 text={msg.text}
                 time={msg.time}
@@ -225,6 +239,7 @@ function App() {
               <AttachmentPreview file={attachment} onRemove={() => setAttachment(null)} />
 
               <textarea
+                ref={textareaRef}
                 rows={1}
                 placeholder="Send a message to brain 'Octo Agent'..."
                 value={inputObj.text}

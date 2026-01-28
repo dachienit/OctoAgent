@@ -5,7 +5,7 @@ import CodeBlock from './CodeBlock';
 // Configure marked options
 marked.use({ breaks: true });
 
-export default function MessageBubble({ role, text, time, sender, onReviewCode, onApplyCode }) {
+const MessageBubble = React.forwardRef(({ role, text, time, sender, onReviewCode, onApplyCode }, ref) => {
 
     const contentParts = useMemo(() => {
         const parts = [];
@@ -42,7 +42,7 @@ export default function MessageBubble({ role, text, time, sender, onReviewCode, 
     }, [text]);
 
     return (
-        <div className={`message ${role} ${contentParts.some(p => p.type === 'code') ? 'has-code' : ''}`}>
+        <div ref={ref} className={`message ${role} ${contentParts.some(p => p.type === 'code') ? 'has-code' : ''}`}>
             <div className="message-meta">
                 <span>{sender}</span><span>{time}</span>
             </div>
@@ -62,4 +62,6 @@ export default function MessageBubble({ role, text, time, sender, onReviewCode, 
             </div>
         </div>
     );
-}
+});
+
+export default MessageBubble;
