@@ -24,3 +24,4 @@ dist-ssr
 .env
 .npmrc
 73aihkt.json
+btp-sample-auth/

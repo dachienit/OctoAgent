@@ -1,8 +1,31 @@
+---
 applications:
-  - name: octo-agent
-    memory: 512M
-    instances: 1
+  - name: octo-agent-srv
     path: .
+    memory: 512M
+    disk_quota: 2G
+    instances: 1
     buildpacks:
       - nodejs_buildpack
+    services:
+      - learna-auth
     command: npm start
+    routes:
+      - route: rb-btphub-taf-d-octo-agent-srv.cfapps.eu10-004.hana.ondemand.com
+
+  - name: octo-agent
+    path: approuter
+    memory: 128M
+    buildpacks:
+      - nodejs_buildpack
+    services:
+      - learna-auth
+    env:
+      destinations: >
+        [
+          {
+            "name": "backend",
+            "url": "https://rb-btphub-taf-d-octo-agent-srv.cfapps.eu10-004.hana.ondemand.com",
+            "forwardAuthToken": true
+          }
+        ]
