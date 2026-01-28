@@ -58,6 +58,7 @@
   },
   "keywords": [],
   "devDependencies": {
+    "@sap/cds-dk": "^9.6.1",
     "esbuild": "^0.27.0",
     "pkg": "^5.8.1"
   }
