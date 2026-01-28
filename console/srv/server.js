@@ -1,6 +1,13 @@
-const cds = require('@sap/cds');
-const passport = require('passport');
-const xsenv = require('@sap/xsenv');
+import cds from '@sap/cds';
+import passport from 'passport';
+import xsenv from '@sap/xsenv';
+import path from 'path';
+import express from 'express';
+import { fileURLToPath } from 'url';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 cds.on('bootstrap', app => {
     console.log('[Server] Bootstrapping...');
@@ -20,6 +27,7 @@ cds.on('bootstrap', app => {
     if (isXsuaaBound) {
         // --- PROD / BTP Mode ---
         console.log('[Server] XSUAA service found. Enabling Passport JWT strategy.');
+        // Dynamic import or require for CJS modules if needed
         const { XssecPassportStrategy, XsuaaService } = require('@sap/xssec');
         const authService = new XsuaaService(services.xsuaa);
 
@@ -28,16 +36,14 @@ cds.on('bootstrap', app => {
 
         // Protect /api routes
         app.use('/api', passport.authenticate('JWT', { session: false }));
+        app.use('/settings', passport.authenticate('JWT', { session: false })); // Also protect settings
 
     } else {
         // --- LOCAL / MOCK Mode ---
         console.log('[Server] No XSUAA service found. Enabling Local Mock Auth.');
 
         app.use((req, res, next) => {
-            console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
-            // Check if there is already an Authorization header (e.g. from CAP mock)
-            // If not, inject our mock user
-            // Force inject our mock user for local dev
+            // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
             req.authInfo = {
                 getLogonName: () => 'localTest',
                 getEmail: () => 'localTest@bosch.com',
@@ -51,6 +57,18 @@ cds.on('bootstrap', app => {
             next();
         });
     }
+
+    // --- Serve React Static Files (Monolithic Mode) ---
+    const reactBuildPath = path.join(__dirname, '../app/octo-client/dist');
+    app.use(express.static(reactBuildPath));
+
+    // React Router Fallback
+    app.get('*', (req, res, next) => {
+        if (req.path.startsWith('/api') || req.path.startsWith('/settings')) {
+            return next();
+        }
+        res.sendFile(path.join(reactBuildPath, 'index.html'));
+    });
 });
 
-module.exports = cds.server;
+export default cds.server;

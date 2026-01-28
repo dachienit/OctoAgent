@@ -8,15 +8,16 @@
     "abap": "bin/index.js"
   },
   "scripts": {
-    "start": "cds watch",
+    "start": "cds serve",
     "watch": "cds watch",
     "build": "rimraf resources mta_archives && mbt build --mtar archive",
+    "postinstall": "npm run build:client",
     "dev:client": "npm run dev --prefix app/octo-client",
     "build:client": "npm run build --prefix app/octo-client",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "cds": {
-    "server": "srv/server.cjs",
+    "server": "srv/server.js",
     "requires": {
       "db": {
         "kind": "sqlite",
