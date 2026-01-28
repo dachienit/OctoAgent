@@ -9,6 +9,7 @@ const defaultEnv = {
     ntid: "",
     customPrompt: "",
     theme: "colorful",
+    skill: ""
 };
 
 // Helper to apply theme to body

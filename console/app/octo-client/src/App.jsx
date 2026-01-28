@@ -229,6 +229,13 @@ function App() {
                 placeholder="Send a message to brain 'Octo Agent'..."
                 value={inputObj.text}
                 onChange={handleInputChange}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    // trigger form submit
+                    handleSend(e);
+                  }
+                }}
               />
 
               <button type="button" className="btn-attach" title="Attach file" onClick={() => fileInputRef.current.click()}>

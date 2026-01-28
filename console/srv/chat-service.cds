@@ -5,6 +5,7 @@ service ChatService @(impl: './chat-service.cjs', path: '/api') {
     ntid : String;
     customPrompt : String;
     theme : String;
+    skill : String;
   }
 
   type ChatResponse {
