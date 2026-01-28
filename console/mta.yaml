@@ -1,0 +1,91 @@
+_schema-version: '3.1'
+ID: octo-console
+version: 1.0.0
+description: "Octo Agent BTP Application"
+parameters:
+  enable-parallel-deployments: true
+build-parameters:
+  before-all:
+    - builder: custom
+      commands:
+        - npm ci
+        - npx -p @sap/cds-dk cds build --production
+
+modules:
+  - name: octo-console-srv
+    type: nodejs
+    path: gen/srv
+    parameters:
+      buildpack: nodejs_buildpack
+    build-parameters:
+      builder: npm-ci
+    provides:
+      - name: srv-api # required by consumers of CAP services
+        properties:
+          srv-url: ${default-url}
+    requires:
+      - name: octo-console-auth
+      - name: octo-console-dest
+
+  - name: octo-console-ui-deployer
+    type: com.sap.application.content
+    path: .
+    requires:
+      - name: octo-console-repo-host
+        parameters:
+          content-target: true
+    build-parameters:
+      build-result: resources
+      requires:
+        - artifacts:
+            - octoclient-content.zip
+          name: octoclient
+          target-path: resources/
+
+  - name: octoclient
+    type: html5
+    path: app/octo-client
+    build-parameters:
+      builder: custom
+      commands:
+        - npm install
+        - npm run build
+      supported-platforms: []
+      build-result: dist
+      destination: octoclient-content.zip
+
+resources:
+  - name: octo-console-auth
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: xsuaa
+      service-plan: application
+      path: ./xs-security.json
+      config:
+        xsappname: octo-agent-${org}-${space}
+        tenant-mode: dedicated
+
+  - name: octo-console-repo-host
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: html5-apps-repo
+      service-plan: app-host
+
+  - name: octo-console-dest
+    type: org.cloudfoundry.managed-service
+    parameters:
+      service: destination
+      service-plan: lite
+      config:
+        init_data:
+          instance:
+            existing_destinations:
+              - Name: octo-console-srv-api
+                URL: ~{srv-api/srv-url}
+                Authentication: NoAuthentication
+                Type: HTTP
+                ProxyType: Internet
+                HTML5.DynamicDestination: true
+                HTML5.ForwardAuthToken: true
+    requires:
+      - name: srv-api
