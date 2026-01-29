@@ -174,7 +174,31 @@ const SapLogin = () => {
         }
     };
 
-    const handleLogout = () => {
+    const handleLogout = async () => {
+        if (postEndpointRef.current) {
+            setStatus({ type: 'info', msg: 'Logging out...' });
+            try {
+                const payload = {
+                    "jsonrpc": "2.0",
+                    "method": "tools/call",
+                    "params": {
+                        "name": "logout",
+                        "arguments": {}
+                    },
+                    "id": 2
+                };
+
+                await fetch(postEndpointRef.current, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                console.log("[MCP] Logout Request Sent");
+            } catch (err) {
+                console.error("Logout failed", err);
+            }
+        }
+
         cleanup();
         setIsLoggedIn(false);
         setStatus({ type: 'info', msg: 'Logged out' });
