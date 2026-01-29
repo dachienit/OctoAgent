@@ -35,6 +35,47 @@ const SapLogin = () => {
                 setStatus({ type: 'info', msg: 'Connected to Server. Waiting for endpoint...' });
             };
 
+            // Handle 'endpoint' event
+            eventSource.addEventListener('endpoint', async (event) => {
+                const data = event.data;
+                console.log("[SSE] Endpoint Event:", data);
+
+                postEndpointRef.current = `http://localhost:3001${data}`;
+                console.log("[SSE] Endpoint received:", postEndpointRef.current);
+
+                // 3. Send Login POST
+                setStatus({ type: 'info', msg: 'Authenticating...' });
+                try {
+                    const payload = {
+                        "jsonrpc": "2.0",
+                        "method": "tools/call",
+                        "params": {
+                            "name": "login",
+                            "arguments": {
+                                "SAP_URL": sapConfig.url,
+                                "SAP_USER": sapConfig.user,
+                                "SAP_PASSWORD": sapConfig.password,
+                                "SAP_CLIENT": sapConfig.client,
+                                "SAP_LANGUAGE": "EN",
+                                "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+                            }
+                        },
+                        "id": 1
+                    };
+
+                    await fetch(postEndpointRef.current, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    console.log("[MCP] Login Request Sent");
+
+                } catch (err) {
+                    setStatus({ type: 'error', msg: `Connection Error: ${err.message}` });
+                    cleanup();
+                }
+            });
+
             eventSource.onmessage = async (event) => {
                 const data = event.data;
                 console.log("[SSE] Message:", data);
