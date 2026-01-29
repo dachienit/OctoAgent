@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
-export default function CodeBlock({ code, onReview, onApply }) {
+export default function CodeBlock({ code, context, onReview, onApply }) {
     const [content, setContent] = useState(code);
     const textareaRef = useRef(null);
 
@@ -38,14 +38,14 @@ export default function CodeBlock({ code, onReview, onApply }) {
                     type="button"
                     className="btn-primary btn-review-code"
                     style={{ marginRight: '8px' }}
-                    onClick={() => onReview && onReview(content)}
+                    onClick={() => onReview && onReview(content, context)}
                 >
                     Review
                 </button>
                 <button
                     type="button"
                     className="btn-primary btn-apply-code"
-                    onClick={() => onApply && onApply(content)}
+                    onClick={() => onApply && onApply(content, context)}
                 >
                     Apply
                 </button>

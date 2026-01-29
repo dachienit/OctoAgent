@@ -49,7 +49,19 @@ const MessageBubble = React.forwardRef(({ role, text, time, sender, onReviewCode
             <div>
                 {contentParts.map((part, idx) => {
                     if (part.type === 'code') {
-                        return <CodeBlock key={idx} code={part.content} onReview={onReviewCode} onApply={onApplyCode} />;
+                        // Get context from previous part if it exists and is text
+                        const prevPart = idx > 0 ? contentParts[idx - 1] : null;
+                        const context = (prevPart && prevPart.type === 'text') ? prevPart.content : '';
+
+                        return (
+                            <CodeBlock
+                                key={idx}
+                                code={part.content}
+                                context={context}
+                                onReview={onReviewCode}
+                                onApply={onApplyCode}
+                            />
+                        );
                     } else {
                         return (
                             <div

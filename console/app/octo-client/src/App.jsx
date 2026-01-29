@@ -243,23 +243,112 @@ function App() {
   }
 
 
+  // Metadata Extraction Helper
+  const extractMetadata = (text) => {
+    if (!text) return { objectType: "", objectName: "", error: "" };
+
+    let objectType = "";
+    let objectName = "";
+    let error = "";
+
+    const typeMatch = text.match(/Object Type\s*[:]\s*(.*?)(\n|$)/i);
+    if (typeMatch) objectType = typeMatch[1].trim().replace(/`/g, '');
+
+    const nameMatch = text.match(/Object Name\s*[:]\s*(.*?)(\n|$)/i);
+    if (nameMatch) objectName = nameMatch[1].trim().replace(/`/g, '');
+
+    const errorMatch = text.match(/Error\s*[:]\s*(.*?)(\n|$)/i);
+    if (errorMatch) error = errorMatch[1].trim().replace(/`/g, '');
+
+    return { objectType, objectName, error };
+  };
+
+  const handleReviewCode = async (code, context) => {
+    const metadata = extractMetadata(context);
+    console.log('[Review] Metadata:', metadata);
+
+    // Visual feedback
+    setMessages(prev => [...prev, {
+      role: 'user',
+      text: '@Review',
+      sender: settings.ntid || 'You',
+      time: formatTime()
+    }]);
+
+    setIsProcessing(true);
+    try {
+      const data = await api.chat(
+        code,
+        settings,
+        'review',
+        false, // reLoad
+        { ...metadata, historyID }
+      );
+
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        text: data.reply,
+        sender: 'Octo Agent',
+        time: formatTime()
+      }]);
+    } catch (err) {
+      alert("Error reviewing code: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  const handleApplyCode = async (code, context) => {
+    const metadata = extractMetadata(context);
+    console.log('[Apply] Metadata:', metadata);
+
+    alert("Feature coming soon."); // Parity with script.js
+
+    // Visual feedback
+    setMessages(prev => [...prev, {
+      role: 'user',
+      text: '@Apply',
+      sender: settings.ntid || 'You',
+      time: formatTime()
+    }]);
+
+    setIsProcessing(true);
+    try {
+      const data = await api.chat(
+        code,
+        settings,
+        'apply',
+        false, // reLoad
+        { ...metadata, historyID }
+      );
+
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        text: data.reply,
+        sender: 'Octo Agent',
+        time: formatTime()
+      }]);
+    } catch (err) {
+      alert("Error applying code: " + err.message);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div className="app">
       {/* Left Sidebar */}
       <aside id="leftSidebar" className={`sidebar sidebar-left ${leftOpen ? '' : 'collapsed'}`}>
         <div className="sidebar-content">
-
           <button className="btn-new-chat" onClick={() => { setMessages([]); setHistoryID(''); }}>
             <span className="icon">+</span>
             <span>New Chat</span>
           </button>
-
           <div className="recent-chats-section">
             <div className="section-header" style={{ cursor: 'pointer' }}>
               <span>Recent Chats</span>
               <span className="toggle-icon">▼</span>
             </div>
-            {/* Recent chats list placeholder */}
           </div>
         </div>
         <button className="sidebar-toggle sidebar-toggle-left" onClick={() => setLeftOpen(!leftOpen)}>
@@ -278,7 +367,6 @@ function App() {
         </div>
 
         <div className="three-col-layout">
-
           {/* Left Column: SAP Login */}
           <div className="col-left">
             <SapLogin />
@@ -306,6 +394,8 @@ function App() {
                     text={msg.text}
                     time={msg.time}
                     sender={msg.sender}
+                    onReviewCode={handleReviewCode}
+                    onApplyCode={handleApplyCode}
                   />
                 ))}
               </div>
