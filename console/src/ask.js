@@ -329,7 +329,7 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
 
     const token = await getTokenCached();
 
-    /*     if (process.env.PROX) {
+     if (process.env.PROX) {
             // Corporate proxy uses CA not in undici's certificate store
             //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
             const dispatcher = new ProxyAgent({
@@ -337,7 +337,7 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
                 token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
             });
             setGlobalDispatcher(dispatcher);
-        } */
+        } 
 
     if (!historyID) {
         historyID = await createHistory(env.brainId, token);
