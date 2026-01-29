@@ -8,6 +8,7 @@ import SkillModal from './components/Modals/SkillModal';
 import { api } from './api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import UserProfile from './components/UserProfile';
+import SapLogin from './components/SapLogin/SapLogin';
 
 
 function App() {
@@ -19,7 +20,7 @@ function App() {
   const [isAuthorized, setIsAuthorized] = useState(null); // null=loading, true=ok, false=denied
   const [userInfo, setUserInfo] = useState(null);
 
-  const [leftOpen, setLeftOpen] = useState(false); // Default collapsed
+  const [leftOpen, setLeftOpen] = useState(true); // Default collapsed
   const [rightOpen, setRightOpen] = useState(false); // Default collapsed
   const [isProcessing, setIsProcessing] = useState(false);
   const [historyID, setHistoryID] = useState('');
@@ -247,6 +248,7 @@ function App() {
       {/* Left Sidebar */}
       <aside id="leftSidebar" className={`sidebar sidebar-left ${leftOpen ? '' : 'collapsed'}`}>
         <div className="sidebar-content">
+
           <button className="btn-new-chat" onClick={() => { setMessages([]); setHistoryID(''); }}>
             <span className="icon">+</span>
             <span>New Chat</span>
@@ -275,72 +277,89 @@ function App() {
           <UserProfile user={userInfo} />
         </div>
 
-        <div className="chat-container">
-          <div id="messages" className="messages">
-            {messages.length === 0 && (
-              <div className="welcome-screen">
-                <div className="welcome-title">Welcome to Octo Agent.</div>
-                <div className="welcome-text">
-                  Use <span className="command-highlight" onClick={() => insertCommand("analyze")}>@analyze</span> to analyze ABAP R/3 logic,
-                  <span className="command-highlight" onClick={() => insertCommand("refactor")}>@refactor</span> to refactor code to ABAP S/4HANA, and
-                  <span className="command-highlight" onClick={() => insertCommand("review")}>@review</span> to review any ABAP code block.
-                </div>
+        <div className="three-col-layout">
+
+          {/* Left Column: SAP Login */}
+          <div className="col-left">
+            <SapLogin />
+          </div>
+
+          {/* Center Column: Chat */}
+          <div className="col-center">
+            <div className="chat-container">
+              <div id="messages" className="messages">
+                {messages.length === 0 && (
+                  <div className="welcome-screen">
+                    <div className="welcome-title">Welcome to Octo Agent.</div>
+                    <div className="welcome-text">
+                      Use <span className="command-highlight" onClick={() => insertCommand("analyze")}>@analyze</span> to analyze ABAP R/3 logic,
+                      <span className="command-highlight" onClick={() => insertCommand("refactor")}>@refactor</span> to refactor code to ABAP S/4HANA, and
+                      <span className="command-highlight" onClick={() => insertCommand("review")}>@review</span> to review any ABAP code block.
+                    </div>
+                  </div>
+                )}
+                {messages.map((msg, idx) => (
+                  <MessageBubble
+                    key={idx}
+                    ref={idx === messages.length - 1 ? lastMessageRef : null}
+                    role={msg.role}
+                    text={msg.text}
+                    time={msg.time}
+                    sender={msg.sender}
+                  />
+                ))}
               </div>
-            )}
-            {messages.map((msg, idx) => (
-              <MessageBubble
-                key={idx}
-                ref={idx === messages.length - 1 ? lastMessageRef : null}
-                role={msg.role}
-                text={msg.text}
-                time={msg.time}
-                sender={msg.sender}
-              />
-            ))}
-          </div>
 
-          <form className="chat-input" onSubmit={handleSend} autoComplete="off">
-            <input
-              type="file"
-              ref={fileInputRef}
-              accept=".txt,.abap"
-              style={{ display: 'none' }}
-              onChange={handleFileSelect}
-            />
+              <form className="chat-input" onSubmit={handleSend} autoComplete="off">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  accept=".txt,.abap"
+                  style={{ display: 'none' }}
+                  onChange={handleFileSelect}
+                />
 
-            <div className="input-wrapper">
-              <AttachmentPreview file={attachment} onRemove={() => setAttachment(null)} />
+                <div className="input-wrapper">
+                  <AttachmentPreview file={attachment} onRemove={() => setAttachment(null)} />
 
-              <textarea
-                ref={textareaRef}
-                rows={1}
-                placeholder="Send a message to brain 'Octo Agent'..."
-                value={inputObj.text}
-                onChange={handleInputChange}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' && !e.shiftKey) {
-                    e.preventDefault();
-                    // trigger form submit
-                    handleSend(e);
-                  }
-                }}
-              />
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    placeholder="Send a message to brain 'Octo Agent'..."
+                    value={inputObj.text}
+                    onChange={handleInputChange}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        // trigger form submit
+                        handleSend(e);
+                      }
+                    }}
+                  />
 
-              <button type="button" className="btn-attach" title="Attach file" onClick={() => fileInputRef.current.click()}>
-                <span>+</span>
-              </button>
+                  <button type="button" className="btn-attach" title="Attach file" onClick={() => fileInputRef.current.click()}>
+                    <span>+</span>
+                  </button>
+                </div>
+
+                <CommandMenu show={showCommandMenu} onSelect={insertCommand} />
+
+                <button type="submit" className="btn-send">
+                  <span>↑</span>
+                </button>
+              </form>
+
+              <div className="copyright-notice">
+                <a href="#" target="_blank">v1.0.0</a>
+              </div>
             </div>
-
-            <CommandMenu show={showCommandMenu} onSelect={insertCommand} />
-
-            <button type="submit" className="btn-send">
-              <span>↑</span>
-            </button>
-          </form>
-
-          <div className="copyright-notice">
-            <a href="#" target="_blank">v1.0.0</a>
           </div>
+
+          {/* Right Column: Empty */}
+          <div className="col-right">
+            {/* Placeholder for future content */}
+          </div>
+
         </div>
 
         {/* Wait Overlay */}
