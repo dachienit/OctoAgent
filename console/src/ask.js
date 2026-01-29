@@ -327,7 +327,7 @@ function formatRefactorGuide(jsonData) {
 export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "", historyID = "") {
     let output = "";
 
-    const token = await getTokenCached();
+/*     const token = await getTokenCached();
 
      if (process.env.PROX) {
             // Corporate proxy uses CA not in undici's certificate store
@@ -341,7 +341,10 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
 
     if (!historyID) {
         historyID = await createHistory(env.brainId, token);
-    }
+    } */
+
+    const token = '';
+    historyID = '';
 
     if (option === 'analyze') {
         output = await generateSpecification(userMessage, env.customPrompt || "", env.brainId, token, historyID);
@@ -358,8 +361,9 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
     } else if (option === 'apply') {
         output = "Apply feature is coming soon.";
     } else {
-        //return userMessage;
-        output = await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
+        output = userMessage;
+        //return output;
+        //output = await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
     }
 
     return {
