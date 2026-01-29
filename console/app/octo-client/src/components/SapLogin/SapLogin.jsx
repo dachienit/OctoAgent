@@ -284,6 +284,44 @@ const SapLogin = () => {
                 >
                     {isLoading ? 'Connecting...' : (isLoggedIn ? 'Logout' : 'Login')}
                 </button>
+
+                <button
+                    type="button"
+                    className="btn-secondary"
+                    style={{ width: '100%', marginTop: '10px', background: '#6c757d', color: 'white' }}
+                    onClick={async () => {
+                        if (!postEndpointRef.current) {
+                            alert("No Endpoint. Please Login (Connect) first to get a session ID.");
+                            return;
+                        }
+                        try {
+                            const payload = {
+                                "jsonrpc": "2.0",
+                                "method": "tools/call",
+                                "params": {
+                                    "name": "searchObject",
+                                    "arguments": {
+                                        "query": "Z_CL_PO_PORCESS"
+                                    }
+                                },
+                                "id": 999
+                            };
+
+                            const res = await fetch(postEndpointRef.current, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(payload)
+                            });
+                            const json = await res.json();
+                            alert(JSON.stringify(json, null, 2));
+
+                        } catch (e) {
+                            alert("Error: " + e.message);
+                        }
+                    }}
+                >
+                    Get Z_CL_PO_PORCESS
+                </button>
             </form>
         </div>
     );
