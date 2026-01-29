@@ -30,6 +30,11 @@ const SapLogin = () => {
             const eventSource = new EventSource('http://localhost:3001/sse');
             eventSourceRef.current = eventSource;
 
+            eventSource.onopen = () => {
+                console.log("[SSE] Connection Opened!");
+                setStatus({ type: 'info', msg: 'Connected to Server. Waiting for endpoint...' });
+            };
+
             eventSource.onmessage = async (event) => {
                 const data = event.data;
                 console.log("[SSE] Message:", data);
