@@ -35,9 +35,8 @@ cds.on('bootstrap', app => {
         app.use(passport.initialize());
 
         // Protect /api routes
-        // BYPASS: User has no permission to assign Roles, so we disable backend validation.
-        // app.use('/api', passport.authenticate('JWT', { session: false }));
-        // app.use('/settings', passport.authenticate('JWT', { session: false }));
+        app.use('/api', passport.authenticate('JWT', { session: false }));
+        app.use('/settings', passport.authenticate('JWT', { session: false }));
 
     } else {
         // --- LOCAL / MOCK Mode ---
@@ -59,7 +58,7 @@ cds.on('bootstrap', app => {
         });
     }
 
-    // --- Serve React Static Files (Monolithic Mode) ---
+/*     // --- Serve React Static Files (Monolithic Mode) ---
     const reactBuildPath = path.join(__dirname, '../app/octo-client/dist');
     app.use(express.static(reactBuildPath));
 
@@ -69,7 +68,7 @@ cds.on('bootstrap', app => {
             return next();
         }
         res.sendFile(path.join(reactBuildPath, 'index.html'));
-    });
+    }); */
 });
 
 export default cds.server;

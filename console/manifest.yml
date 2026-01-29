@@ -24,7 +24,7 @@ applications:
       destinations: >
         [
           {
-            "name": "backend",
+            "name": "octo-backend",
             "url": "https://rb-btphub-taf-d-octo-agent-srv.cfapps.eu10-004.hana.ondemand.com",
             "forwardAuthToken": true
           }

@@ -5,20 +5,20 @@
         {
             "source": "^/api/(.*)$",
             "target": "/api/$1",
-            "destination": "backend",
+            "destination": "octo-backend",
             "authenticationType": "xsuaa",
             "csrfProtection": false
         },
         {
             "source": "^/settings/(.*)$",
             "target": "/settings/$1",
-            "destination": "backend",
+            "destination": "octo-backend",
             "authenticationType": "xsuaa",
             "csrfProtection": false
         },
         {
             "source": "^(.*)$",
-            "localDir": "resources",
+            "localDir": "dist",
             "authenticationType": "xsuaa"
         }
     ]

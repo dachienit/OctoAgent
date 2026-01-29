@@ -18,7 +18,7 @@
     ],
     "oauth2-configuration": {
         "redirect-uris": [
-            "https://*.hana.ondemand.com/**"
+            "https://rb-btphub-taf-d-octo-agent.cfapps.eu10-004.hana.ondemand.com/**"
         ]
     }
 }
