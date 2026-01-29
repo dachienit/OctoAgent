@@ -28,15 +28,15 @@ cds.on('bootstrap', app => {
         // --- PROD / BTP Mode ---
         console.log('[Server] XSUAA service found. Enabling Passport JWT strategy.');
         // Dynamic import or require for CJS modules if needed
-        const { XssecPassportStrategy, XsuaaService } = require('@sap/xssec');
+        const { XssecPassportStrategy, XsuaaService, SECURITY_CONTEXT } = require('@sap/xssec');
         const authService = new XsuaaService(services.xsuaa);
 
-        passport.use(new XssecPassportStrategy(authService)); // Default name is 'JWT'
+        passport.use(new XssecPassportStrategy(authService, SECURITY_CONTEXT)); // Default name is 'JWT'
         app.use(passport.initialize());
 
         // Protect /api routes
         app.use('/api', passport.authenticate('JWT', { session: false }));
-        app.use('/settings', passport.authenticate('JWT', { session: false })); // Also protect settings
+        app.use('/settings', passport.authenticate('JWT', { session: false }));
 
     } else {
         // --- LOCAL / MOCK Mode ---

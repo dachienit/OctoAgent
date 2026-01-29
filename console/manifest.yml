@@ -8,7 +8,7 @@ applications:
     buildpacks:
       - nodejs_buildpack
     services:
-      - learna-auth
+      - octo-agent-auth
     command: npm start
     routes:
       - route: rb-btphub-taf-d-octo-agent-srv.cfapps.eu10-004.hana.ondemand.com
@@ -19,7 +19,7 @@ applications:
     buildpacks:
       - nodejs_buildpack
     services:
-      - learna-auth
+      - octo-agent-auth
     env:
       destinations: >
         [
