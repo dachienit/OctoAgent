@@ -146,6 +146,11 @@ const SapLogin = () => {
                         } else if (resultObj.error) {
                             // FAILURE
                             throw new Error(resultObj.error);
+                        } else {
+                            // GENERIC RESULT (e.g. from searchObject)
+                            console.log("[SSE] Tool Result:", resultObj);
+                            // Show popup for test data
+                            alert("MCP Result:\n" + JSON.stringify(resultObj, null, 2));
                         }
                     } else if (json.error) {
                         throw new Error(json.error.message || "Unknown RPC Error");
@@ -301,7 +306,7 @@ const SapLogin = () => {
                                 "params": {
                                     "name": "searchObject",
                                     "arguments": {
-                                        "query": "Z_CL_PO_PORCESS"
+                                        "query": "Z_CL_PO_PROCESS"
                                     }
                                 },
                                 "id": 999
@@ -312,8 +317,10 @@ const SapLogin = () => {
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify(payload)
                             });
-                            const json = await res.json();
-                            alert(JSON.stringify(json, null, 2));
+                            // MCP returns "Accepted" text, not JSON for the request acknowledgement
+                            // Result will be received via SSE
+                            const text = await res.text();
+                            console.log("[MCP] Command Sent. Server responded:", text);
 
                         } catch (e) {
                             alert("Error: " + e.message);
