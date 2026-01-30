@@ -1,11 +1,12 @@
 import React, { useMemo } from 'react';
 import { marked } from 'marked';
 import CodeBlock from './CodeBlock';
+import { FileText } from 'lucide-react';
 
 // Configure marked options
 marked.use({ breaks: true });
 
-const MessageBubble = React.forwardRef(({ role, text, time, sender, onReviewCode, onApplyCode }, ref) => {
+const MessageBubble = React.forwardRef(({ role, text, attachment, time, sender, onReviewCode, onApplyCode, onViewAttachment }, ref) => {
 
     const contentParts = useMemo(() => {
         const parts = [];
@@ -71,6 +72,36 @@ const MessageBubble = React.forwardRef(({ role, text, time, sender, onReviewCode
                         );
                     }
                 })}
+
+                {/* Attachment Card */}
+                {attachment && (
+                    <div
+                        className="attachment-card"
+                        onDoubleClick={() => onViewAttachment && onViewAttachment(attachment)}
+                        title="Double-click to view content"
+                        style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            marginTop: '10px',
+                            padding: '10px',
+                            background: 'rgba(255, 255, 255, 0.1)',
+                            border: '1px solid rgba(255, 255, 255, 0.2)',
+                            borderRadius: '6px',
+                            cursor: 'pointer',
+                            maxWidth: '300px'
+                        }}
+                    >
+                        <FileText size={20} style={{ marginRight: '10px', opacity: 0.8 }} />
+                        <div style={{ overflow: 'hidden' }}>
+                            <div style={{ fontWeight: '500', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                {attachment.name}
+                            </div>
+                            <div style={{ fontSize: '0.8em', opacity: 0.7 }}>
+                                Double-click to view
+                            </div>
+                        </div>
+                    </div>
+                )}
             </div>
         </div>
     );

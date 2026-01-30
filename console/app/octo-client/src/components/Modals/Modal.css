@@ -1,0 +1,97 @@
+/* Reuse variables from global styles */
+
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-primary, #e1e1e1);
+    z-index: 1000;
+    backdrop-filter: blur(2px);
+}
+
+.modal-content {
+    background: var(--bg-content, #1e1e1e);
+    border-radius: 16px;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 10px 10px -5px rgba(0, 0, 0, 0.04);
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    animation: modalPop 0.2s ease-out;
+    border: 1px solid var(--border-color, #333);
+}
+
+@keyframes modalPop {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-color, #333);
+    background: var(--bg-header, #252526);
+    border-top-left-radius: 16px;
+    border-top-right-radius: 16px;
+}
+
+.modal-header h3 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary, #fff);
+}
+
+.close-btn {
+    background: transparent;
+    border: none;
+    font-size: 20px;
+    color: var(--text-secondary, #aaa);
+    cursor: pointer;
+    width: 28px;
+    height: 28px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 6px;
+    transition: all 0.2s ease;
+}
+
+.close-btn:hover {
+    background: var(--hover-bg, rgba(255, 255, 255, 0.1));
+    color: var(--text-primary, #fff);
+}
+
+.modal-body {
+    padding: 0;
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    background: var(--bg-content, #1e1e1e);
+}
+
+.modal-footer {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border-color, #333);
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    background: var(--bg-header, #252526);
+    border-bottom-left-radius: 16px;
+    border-bottom-right-radius: 16px;
+}

@@ -62,38 +62,39 @@ export const updateObject = async (objectName, objectUrl, sourceCode, transport,
             const errorMsg = syntaxErrors.map(e => `[ERROR] Line ${e.line}: ${e.text}`).join('\n');
             alert("Syntax Check Failed:\n" + errorMsg);
             setStatus({ type: 'error', msg: 'Syntax Check Failed' });
+            await unLockObject(objectUrl, lockHandle, callMcpTool, setStatus);
             return;
         }
 
-        // 4. ACTIVATE 
-        setStatus({ type: 'info', msg: 'Update: Activating...' });
-        const activeRes = await callMcpTool('activateByName', { objectName, objectUrl });
-        console.log("[MCP] Activation Result:", activeRes);
-
-        if (activeRes && activeRes.messages) {
-            const errors = activeRes.messages.filter(m =>
-                m.type === 'E' || m.severity === 'E' || m.type === 'error' || m.severity === 'error'
-            );
-            const warnings = activeRes.messages.filter(m =>
-                m.type === 'W' || m.severity === 'W' || m.type === 'warning' || m.severity === 'warning'
-            );
-
-            if (errors.length > 0) {
-                const errorMsg = errors.map(e => `[ERROR] Line ${e.line || e.unitLine || '?'}: ${e.shortText}`).join('\n');
-                alert("Activation Failed with Errors:\n" + errorMsg);
-                setStatus({ type: 'error', msg: 'Activation Failed' });
-                return;
-            }
-
-            if (warnings.length > 0) {
-                const warnMsg = warnings.map(w => `[WARN] ${w.shortText}`).join('\n');
-                alert("Activation Success (with Warnings):\n" + warnMsg);
-            } else {
-                alert("Activation Successful!");
-            }
-        } else {
-            alert("Activation Successful! (No messages returned)");
-        }
+        /*        // 4. ACTIVATE 
+               setStatus({ type: 'info', msg: 'Update: Activating...' });
+               const activeRes = await callMcpTool('activateByName', { objectName, objectUrl });
+               console.log("[MCP] Activation Result:", activeRes);
+       
+               if (activeRes && activeRes.messages) {
+                   const errors = activeRes.messages.filter(m =>
+                       m.type === 'E' || m.severity === 'E' || m.type === 'error' || m.severity === 'error'
+                   );
+                   const warnings = activeRes.messages.filter(m =>
+                       m.type === 'W' || m.severity === 'W' || m.type === 'warning' || m.severity === 'warning'
+                   );
+       
+                   if (errors.length > 0) {
+                       const errorMsg = errors.map(e => `[ERROR] Line ${e.line || e.unitLine || '?'}: ${e.shortText}`).join('\n');
+                       alert("Activation Failed with Errors:\n" + errorMsg);
+                       setStatus({ type: 'error', msg: 'Activation Failed' });
+                       return;
+                   }
+       
+                   if (warnings.length > 0) {
+                       const warnMsg = warnings.map(w => `[WARN] ${w.shortText}`).join('\n');
+                       alert("Activation Success (with Warnings):\n" + warnMsg);
+                   } else {
+                       alert("Activation Successful!");
+                   }
+               } else {
+                   alert("Activation Successful! (No messages returned)");
+               } */
 
         setStatus({ type: 'success', msg: 'Update Complete' });
 

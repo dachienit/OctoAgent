@@ -5,6 +5,7 @@ import CommandMenu from './components/Chat/CommandMenu';
 import AttachmentPreview from './components/Chat/AttachmentPreview';
 import CustomPromptModal from './components/Modals/CustomPromptModal';
 import SkillModal from './components/Modals/SkillModal';
+import FileViewerModal from './components/Modals/FileViewerModal';
 import { api } from './api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import UserProfile from './components/UserProfile';
@@ -20,7 +21,7 @@ function App() {
   const [isAuthorized, setIsAuthorized] = useState(null); // null=loading, true=ok, false=denied
   const [userInfo, setUserInfo] = useState(null);
 
-  const [leftOpen, setLeftOpen] = useState(true); // Default collapsed
+  const [leftOpen, setLeftOpen] = useState(false); // Default collapsed
   const [rightOpen, setRightOpen] = useState(false); // Default collapsed
   const [isProcessing, setIsProcessing] = useState(false);
   const [historyID, setHistoryID] = useState('');
@@ -28,6 +29,9 @@ function App() {
   // Attachments
   const [attachment, setAttachment] = useState(null);
   const fileInputRef = useRef(null);
+
+  // File Viewer Modal
+  const [viewingFile, setViewingFile] = useState(null); // { name, content }
 
   // Commands
   const [showCommandMenu, setShowCommandMenu] = useState(false);
@@ -129,14 +133,19 @@ function App() {
   const handleSend = async (e) => {
     e.preventDefault();
     let textToSend = inputObj.text.trim();
+    let attachmentData = null;
+    let fullContentForLLM = textToSend;
 
     // Read attachment if exists
     if (attachment) {
       try {
         const content = await attachment.text();
-        // Append to text
-        if (textToSend) textToSend += "\n";
-        textToSend += content;
+        attachmentData = { name: attachment.name, content: content };
+
+        // Append content for LLM Logic (Hidden from UI text)
+        if (fullContentForLLM) fullContentForLLM += "\n\n";
+        fullContentForLLM += content;
+
         setAttachment(null); // Clear after reading
       } catch (err) {
         alert("Error reading file attachment");
@@ -144,11 +153,13 @@ function App() {
       }
     }
 
-    if (!textToSend) return;
+    if (!textToSend && !attachmentData) return;
 
+    // UI Message (keeps text and attachment separate)
     const newMsg = {
       role: 'user',
-      text: textToSend, // Legacy parity: shows full content
+      text: textToSend,
+      attachment: attachmentData,
       sender: settings.ntid || 'You',
       time: formatTime()
     };
@@ -159,19 +170,24 @@ function App() {
     setShowCommandMenu(false);
 
     try {
-      // Detect commands
+      // Detect commands in the full content or just text? 
+      // Usually commands are in text. 
+      // Logic below parses 'textToSend', which is fine as commands like @analyze are usually typed.
+      // If the user types "@analyze" and attaches a file, fullContentForLLM has the code.
+
       let option = null;
-      let finalMessage = textToSend;
+      let finalMessage = fullContentForLLM;
 
       if (textToSend.startsWith('@analyze')) {
         option = 'analyze';
-        finalMessage = textToSend.replace('@analyze', '').trim();
+        // Remove command from the full content, assuming it's at start
+        finalMessage = fullContentForLLM.replace('@analyze', '').trim();
       } else if (textToSend.startsWith('@refactor')) {
         option = 'refactor';
-        finalMessage = textToSend.replace('@refactor', '').trim();
+        finalMessage = fullContentForLLM.replace('@refactor', '').trim();
       } else if (textToSend.startsWith('@review')) {
         option = 'review';
-        finalMessage = textToSend.replace('@review', '').trim();
+        finalMessage = fullContentForLLM.replace('@review', '').trim();
       }
 
       const data = await api.chat(
@@ -392,10 +408,12 @@ function App() {
                     ref={idx === messages.length - 1 ? lastMessageRef : null}
                     role={msg.role}
                     text={msg.text}
+                    attachment={msg.attachment}
                     time={msg.time}
                     sender={msg.sender}
                     onReviewCode={handleReviewCode}
                     onApplyCode={handleApplyCode}
+                    onViewAttachment={(att) => setViewingFile(att)}
                   />
                 ))}
               </div>
@@ -554,6 +572,13 @@ function App() {
         isOpen={isSkillModalOpen}
         onClose={() => setIsSkillModalOpen(false)}
         filename={settings.skill}
+      />
+
+      <FileViewerModal
+        isOpen={!!viewingFile}
+        onClose={() => setViewingFile(null)}
+        fileName={viewingFile?.name}
+        content={viewingFile?.content}
       />
 
     </div>
