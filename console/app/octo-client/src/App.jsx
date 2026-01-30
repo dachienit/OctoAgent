@@ -8,7 +8,7 @@ import SkillModal from './components/Modals/SkillModal';
 import { api } from './api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import UserProfile from './components/UserProfile';
-import SapLogin from './components/SapLogin/SapLogin';
+import SapLogin from './components/SapMCP/SapLogin';
 
 
 function App() {
