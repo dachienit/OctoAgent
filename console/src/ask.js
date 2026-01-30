@@ -327,24 +327,24 @@ function formatRefactorGuide(jsonData) {
 export async function ask(option, userMessage, env, objectType = "", objectName = "", error = "", historyID = "") {
     let output = "";
 
-    /*     const token = await getTokenCached();
-    
-        if (process.env.PROX) {
-            // Corporate proxy uses CA not in undici's certificate store
-            //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-            const dispatcher = new ProxyAgent({
-                uri: new URL(process.env.PROX).toString(),
-                token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
-            });
-            setGlobalDispatcher(dispatcher);
-        }
-    
-        if (!historyID) {
-            historyID = await createHistory(env.brainId, token);
-        } */
+    const token = await getTokenCached();
 
-    const token = '';
-    historyID = '';
+    if (process.env.PROX) {
+        // Corporate proxy uses CA not in undici's certificate store
+        //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+        const dispatcher = new ProxyAgent({
+            uri: new URL(process.env.PROX).toString(),
+            token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+        });
+        setGlobalDispatcher(dispatcher);
+    }
+
+    if (!historyID) {
+        historyID = await createHistory(env.brainId, token);
+    }
+
+    //const token = '';
+    //historyID = '';
 
     if (option === 'analyze') {
         output = await generateSpecification(userMessage, env.customPrompt || "", env.brainId, token, historyID);
