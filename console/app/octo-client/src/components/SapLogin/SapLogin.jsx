@@ -79,7 +79,7 @@ ENDCLASS.`
                 setStatus({ type: 'info', msg: 'Authenticating...' });
                 try {
                     // Login uses ID 1
-                    await callMcpTool('login', {
+                    const result = await callMcpTool('login', {
                         "SAP_URL": sapConfig.url,
                         "SAP_USER": sapConfig.user,
                         "SAP_PASSWORD": sapConfig.password,
@@ -87,7 +87,13 @@ ENDCLASS.`
                         "SAP_LANGUAGE": "EN",
                         "NODE_TLS_REJECT_UNAUTHORIZED": "0"
                     }, 1);
-                    console.log("[MCP] Login Request Sent");
+                    console.log("[MCP] Login Result:", result);
+
+                    if (result && result.message && result.message.includes("Login configuration updated")) {
+                        setIsLoggedIn(true);
+                        setStatus({ type: 'success', msg: 'Login Successful' });
+                        setIsLoading(false);
+                    }
                 } catch (err) {
                     setStatus({ type: 'error', msg: `Connection Error: ${err.message}` });
                     cleanup();
