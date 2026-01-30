@@ -118,4 +118,12 @@ const inputStyle = {
     outline: 'none'
 };
 
+const readOnlyStyle = {
+    ...inputStyle,
+    background: '#f0f0f0',
+    color: '#666',
+    border: '1px solid #ddd',
+    cursor: 'default'
+};
+
 export default DeployModal;
