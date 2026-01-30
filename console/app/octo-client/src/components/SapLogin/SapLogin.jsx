@@ -8,7 +8,6 @@ const SapLogin = () => {
         password: ''
     });
 
-    // New state for Test Inputs
     const [testInputs, setTestInputs] = useState({
         transport: 'S4HK902742',
         package: 'ZPK_IYH1HC',
@@ -105,7 +104,6 @@ ENDCLASS.`
 
                 try {
                     const json = JSON.parse(data);
-                    // Match Pending Request
                     if (json.id && pendingRequests.current.has(json.id)) {
                         const { resolve, reject, timeout } = pendingRequests.current.get(json.id);
                         clearTimeout(timeout);
@@ -147,7 +145,6 @@ ENDCLASS.`
 
     const handleLogout = async () => {
         if (postEndpointRef.current) {
-            setStatus({ type: 'info', msg: 'Logging out...' });
             try {
                 callMcpTool('logout', {}, 2).catch(console.error);
             } catch (err) {
@@ -178,7 +175,6 @@ ENDCLASS.`
         };
     }, []);
 
-    // --- ASYNC MCP TOOL CALLER ---
     const callMcpTool = (name, args, id = null) => {
         if (!postEndpointRef.current) return Promise.reject(new Error("No Endpoint. Login first."));
 
@@ -206,7 +202,7 @@ ENDCLASS.`
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-                await res.text(); // Consume "Accepted"
+                await res.text();
             } catch (networkErr) {
                 clearTimeout(timeout);
                 pendingRequests.current.delete(requestId);
@@ -222,7 +218,7 @@ ENDCLASS.`
         try {
             setStatus({ type: 'info', msg: 'Checking object existence...' });
 
-            // 1. CHECK EXISTENCE (using Search)
+            // 1. CHECK EXISTENCE (using SearchObject as requested)
             let exists = false;
             try {
                 // Query for object
@@ -231,16 +227,21 @@ ENDCLASS.`
                 });
                 console.log("[MCP] Search Result:", searchRes);
 
-                // Check if object is in result list
-                if (Array.isArray(searchRes)) {
-                    exists = searchRes.some(obj =>
-                        obj.name === objectName.toUpperCase() &&
-                        (obj.type === 'CLAS/OC' || obj.type === 'CLAS')
+                // Check results based on user's spec:
+                // results: [ { "adtcore:name": "...", "adtcore:type": "CLAS/OC", ... } ]
+                if (searchRes && Array.isArray(searchRes.results)) {
+                    exists = searchRes.results.some(obj =>
+                        obj["adtcore:name"] === objectName.toUpperCase() &&
+                        (obj["adtcore:type"] === 'CLAS/OC' || obj["adtcore:type"] === 'CLAS') // Handle variants
                     );
+                } else {
+                    // Safety check if results is missing or structure differs
+                    console.log("Search result structure unexpected or empty:", searchRes);
+                    exists = false;
                 }
 
-                if (exists) console.log(`Object ${objectName} found in system.`);
-                else console.log(`Object ${objectName} NOT found.`);
+                if (exists) console.log(`Object ${objectName} found in search results.`);
+                else console.log(`Object ${objectName} NOT found in search results.`);
 
             } catch (e) {
                 console.log("Search failed or returned error:", e);
@@ -278,10 +279,9 @@ ENDCLASS.`
             // 1. LOCK
             const lockRes = await callMcpTool('lock', { objectUrl, accessMode: 'MODIFY' });
             if (!lockRes || !lockRes.lockHandle) {
-                throw new Error("Lock failed. Object might not exist or is locked by another user.");
+                throw new Error("Lock failed. Object might be locked by another user.");
             }
             const lockHandle = lockRes.lockHandle;
-            console.log("Locked:", lockHandle);
 
             // 2. SET SOURCE
             setStatus({ type: 'info', msg: 'Update: Setting Source...' });
@@ -291,22 +291,38 @@ ENDCLASS.`
                 lockHandle,
                 transport
             });
-            console.log("Source Set!");
 
             // 3. UNLOCK
             setStatus({ type: 'info', msg: 'Update: Unlocking...' });
             await callMcpTool('unLock', { objectUrl, lockHandle });
-            console.log("Unlocked!");
 
             // 4. ACTIVATE
             setStatus({ type: 'info', msg: 'Update: Activating...' });
             const activeRes = await callMcpTool('activateByName', { objectName, objectUrl });
 
-            let messages = "Activation Done.";
+            // Parse Activation Messages for Errors
+            // result structure usually: { messages: [ { shortText, type: 'E'|'W'|'I', ... } ] }
             if (activeRes && activeRes.messages) {
-                messages = activeRes.messages.map(m => m.shortText).join('\n');
+                const errors = activeRes.messages.filter(m => m.type === 'E');
+                const warnings = activeRes.messages.filter(m => m.type === 'W');
+
+                if (errors.length > 0) {
+                    const errorMsg = errors.map(e => `[ERROR] Line ${e.unitLine || '?'}: ${e.shortText}`).join('\n');
+                    alert("Activation Failed with Errors:\n" + errorMsg);
+                    setStatus({ type: 'error', msg: 'Activation Failed' });
+                    return; // Stop here
+                }
+
+                if (warnings.length > 0) {
+                    const warnMsg = warnings.map(w => `[WARN] ${w.shortText}`).join('\n');
+                    alert("Activation Success (with Warnings):\n" + warnMsg);
+                } else {
+                    alert("Activation Successful!");
+                }
+            } else {
+                alert("Activation Successful! (No messages returned)");
             }
-            alert("Update & Activation Successful!\n" + messages);
+
             setStatus({ type: 'success', msg: 'Update Complete' });
 
         } catch (e) {
