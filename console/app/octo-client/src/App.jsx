@@ -6,10 +6,13 @@ import AttachmentPreview from './components/Chat/AttachmentPreview';
 import CustomPromptModal from './components/Modals/CustomPromptModal';
 import SkillModal from './components/Modals/SkillModal';
 import FileViewerModal from './components/Modals/FileViewerModal';
+import DeployModal from './components/Modals/DeployModal';
 import { api } from './api';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import UserProfile from './components/UserProfile';
 import SapLogin from './components/SapMCP/SapLogin';
+import { useMcp } from './components/SapMCP/useMcp';
+import { saveToSap } from './components/SapMCP/SapSetObject';
 
 
 function App() {
@@ -26,12 +29,20 @@ function App() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [historyID, setHistoryID] = useState('');
 
+  // MCP / SAP Connection (Lifted State of Truth)
+  const mcp = useMcp(); // { isLoggedIn, status, setStatus, isLoading, connect, disconnect, callMcpTool }
+
   // Attachments
   const [attachment, setAttachment] = useState(null);
   const fileInputRef = useRef(null);
 
   // File Viewer Modal
   const [viewingFile, setViewingFile] = useState(null); // { name, content }
+
+  // Deploy Modal State
+  const [deployModalOpen, setDeployModalOpen] = useState(false);
+  const [deployData, setDeployData] = useState({ code: '', metadata: {} });
+  const [isDeploying, setIsDeploying] = useState(false);
 
   // Commands
   const [showCommandMenu, setShowCommandMenu] = useState(false);
@@ -166,6 +177,9 @@ function App() {
 
     setMessages(prev => [...prev, newMsg]);
     setInputObj({ text: '' });
+    if (textareaRef.current) {
+      textareaRef.current.style.height = 'auto'; // Reset height
+    }
     setIsProcessing(true);
     setShowCommandMenu(false);
 
@@ -315,39 +329,52 @@ function App() {
   };
 
   const handleApplyCode = async (code, context) => {
+    /* if (!mcp.isLoggedIn) {
+      alert("Please login to SAP System (Left Sidebar) before applying code.");
+      // Open left sidebar if closed
+      if (!leftOpen) setLeftOpen(true);
+      return;
+    } */
+
     const metadata = extractMetadata(context);
     console.log('[Apply] Metadata:', metadata);
 
-    alert("Feature coming soon."); // Parity with script.js
+    // Store data and open modal
+    setDeployData({
+      code: code,
+      metadata: metadata
+    });
+    setDeployModalOpen(true);
+  };
 
-    // Visual feedback
-    setMessages(prev => [...prev, {
-      role: 'user',
-      text: '@Apply',
-      sender: settings.ntid || 'You',
-      time: formatTime()
-    }]);
+  const handleDeploySubmit = async (inputs) => {
+    // inputs: { packageName, trNumber, description }
+    // deployData: { code, metadata }
 
-    setIsProcessing(true);
+    const payload = {
+      package: inputs.packageName,
+      transport: inputs.trNumber,
+      objectName: deployData.metadata.objectName || '',
+      sourceCode: deployData.code,
+      // description: inputs.description (Not yet used by saveToSap, but good to have)
+    };
+
+    if (!payload.objectName) {
+      alert("Could not determine Object Name from chat context. Please ensure the context above the code block contains 'Object Name: ...'");
+      return;
+    }
+
+    setIsDeploying(true);
     try {
-      const data = await api.chat(
-        code,
-        settings,
-        'apply',
-        false, // reLoad
-        { ...metadata, historyID }
-      );
-
-      setMessages(prev => [...prev, {
-        role: 'bot',
-        text: data.reply,
-        sender: 'Octo Agent',
-        time: formatTime()
-      }]);
+      await saveToSap(payload, mcp.callMcpTool, mcp.setStatus);
+      // If successful (no throw), close modal
+      setDeployModalOpen(false);
+      alert("Deployment process completed.");
     } catch (err) {
-      alert("Error applying code: " + err.message);
+      console.error("Deploy Error:", err);
+      // Error is handled by setStatus usually, but we catch here to stop loading state
     } finally {
-      setIsProcessing(false);
+      setIsDeploying(false);
     }
   };
 
@@ -385,7 +412,15 @@ function App() {
         <div className="three-col-layout">
           {/* Left Column: SAP Login */}
           <div className="col-left">
-            <SapLogin />
+            <SapLogin
+              isLoggedIn={mcp.isLoggedIn}
+              status={mcp.status}
+              setStatus={mcp.setStatus}
+              isLoading={mcp.isLoading}
+              connect={mcp.connect}
+              disconnect={mcp.disconnect}
+              callMcpTool={mcp.callMcpTool}
+            />
           </div>
 
           {/* Center Column: Chat */}
@@ -579,6 +614,14 @@ function App() {
         onClose={() => setViewingFile(null)}
         fileName={viewingFile?.name}
         content={viewingFile?.content}
+      />
+
+      <DeployModal
+        isOpen={deployModalOpen}
+        onClose={() => setDeployModalOpen(false)}
+        onDeploy={handleDeploySubmit}
+        metadata={deployData.metadata}
+        startLoading={isDeploying}
       />
 
     </div>

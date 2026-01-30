@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { saveToSap } from './SapSetObject';
-import { useMcp } from './useMcp';
 
-const SapLogin = () => {
+const SapLogin = ({ isLoggedIn, status, setStatus, isLoading, connect, disconnect, callMcpTool }) => {
     const [sapConfig, setSapConfig] = useState({
         url: '',
         client: '',
@@ -38,8 +37,7 @@ CLASS Z_CL_PO_PROCESS IMPLEMENTATION.
 ENDCLASS.`
     });
 
-    // Use Custom Hook for MCP Connection
-    const { isLoggedIn, status, setStatus, isLoading, connect, disconnect, callMcpTool } = useMcp();
+    // Received MCP context from props
 
     const handleChange = (field, value) => {
         setSapConfig(prev => ({ ...prev, [field]: value }));
