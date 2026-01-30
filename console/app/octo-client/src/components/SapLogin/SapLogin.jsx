@@ -8,6 +8,7 @@ const SapLogin = () => {
         password: ''
     });
 
+    // New state for Test Inputs
     const [testInputs, setTestInputs] = useState({
         transport: 'S4HK902742',
         package: 'ZPK_IYH1HC',
@@ -43,8 +44,6 @@ ENDCLASS.`
     // SSE & MCP State
     const eventSourceRef = useRef(null);
     const postEndpointRef = useRef(null);
-
-    // Pending Requests Map: RequestID -> { resolve, reject, timer }
     const pendingRequests = useRef(new Map());
 
     const handleChange = (field, value) => {
@@ -72,13 +71,10 @@ ENDCLASS.`
             eventSource.addEventListener('endpoint', async (event) => {
                 const data = event.data;
                 console.log("[SSE] Endpoint Event:", data);
-
                 postEndpointRef.current = `http://localhost:3001${data}`;
-                console.log("[SSE] Endpoint received:", postEndpointRef.current);
 
                 setStatus({ type: 'info', msg: 'Authenticating...' });
                 try {
-                    // Login uses ID 1
                     const result = await callMcpTool('login', {
                         "SAP_URL": sapConfig.url,
                         "SAP_USER": sapConfig.user,
@@ -102,19 +98,14 @@ ENDCLASS.`
 
             eventSource.onmessage = async (event) => {
                 const data = event.data;
-                console.log("[SSE] Message:", data);
-
-                // Handle Endpoint (Sent initially or repeatedly)
                 if (data.startsWith('/')) {
                     postEndpointRef.current = `http://localhost:3001${data}`;
                     return;
                 }
 
-                // Handle JSON-RPC Result
                 try {
                     const json = JSON.parse(data);
-
-                    // Check if this result matches a pending request
+                    // Match Pending Request
                     if (json.id && pendingRequests.current.has(json.id)) {
                         const { resolve, reject, timeout } = pendingRequests.current.get(json.id);
                         clearTimeout(timeout);
@@ -123,7 +114,6 @@ ENDCLASS.`
                         if (json.error) {
                             reject(new Error(json.error.message));
                         } else {
-                            // Extract content if available
                             if (json.result && json.result.content && json.result.content[0] && json.result.content[0].text) {
                                 try {
                                     const inner = JSON.parse(json.result.content[0].text);
@@ -135,41 +125,7 @@ ENDCLASS.`
                                 resolve(json.result);
                             }
                         }
-                        return; // Handled as request response
                     }
-
-                    // Handle legacy login success check (if not handled by pendingRequests above)
-                    // or other unsolicited messages
-                    if (json.result && json.result.content && json.result.content[0]) {
-                        const innerText = json.result.content[0].text;
-                        let resultObj;
-                        try {
-                            resultObj = JSON.parse(innerText);
-                        } catch {
-                            resultObj = { message: innerText };
-                        }
-
-                        if (resultObj.message && resultObj.message.includes("Login configuration updated")) {
-                            setIsLoggedIn(true);
-                            setStatus({ type: 'success', msg: 'Login Successful' });
-                            setIsLoading(false);
-                            // Also resolve ID 1 if pending
-                            if (pendingRequests.current.has(1)) {
-                                const { resolve, timeout } = pendingRequests.current.get(1);
-                                clearTimeout(timeout);
-                                pendingRequests.current.delete(1);
-                                resolve(resultObj);
-                            }
-                        } else {
-                            console.log("[SSE] Tool Result (Unsolicited):", resultObj);
-                        }
-                    } else if (json.error) {
-                        console.error("[SSE] RPC Error:", json.error);
-                        if (json.id === 1 || !isLoggedIn) {
-                            setStatus({ type: 'error', msg: json.error.message });
-                        }
-                    }
-
                 } catch (err) {
                     console.error("[SSE] Error parsing result:", err);
                 }
@@ -193,7 +149,6 @@ ENDCLASS.`
         if (postEndpointRef.current) {
             setStatus({ type: 'info', msg: 'Logging out...' });
             try {
-                // Fire and forget logout? or wait?
                 callMcpTool('logout', {}, 2).catch(console.error);
             } catch (err) {
                 console.error("Logout failed", err);
@@ -210,7 +165,6 @@ ENDCLASS.`
             eventSourceRef.current = null;
         }
         setIsLoading(false);
-        // Reject all pending
         pendingRequests.current.forEach(({ reject, timeout }) => {
             clearTimeout(timeout);
             reject(new Error("Connection closed"));
@@ -229,9 +183,7 @@ ENDCLASS.`
         if (!postEndpointRef.current) return Promise.reject(new Error("No Endpoint. Login first."));
 
         const requestId = id || Date.now();
-
         return new Promise(async (resolve, reject) => {
-            // Set 30s timeout
             const timeout = setTimeout(() => {
                 if (pendingRequests.current.has(requestId)) {
                     pendingRequests.current.delete(requestId);
@@ -239,7 +191,6 @@ ENDCLASS.`
                 }
             }, 30000);
 
-            // Register promise
             pendingRequests.current.set(requestId, { resolve, reject, timeout });
 
             const payload = {
@@ -255,12 +206,7 @@ ENDCLASS.`
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(payload)
                 });
-
-                // We expect "Accepted" text or similar, so we don't try to parse JSON here
-                // unless it is NOT "Accepted".
-                const text = await res.text();
-                // console.log(`[MCP] ${name} sent. Response:`, text);
-
+                await res.text(); // Consume "Accepted"
             } catch (networkErr) {
                 clearTimeout(timeout);
                 pendingRequests.current.delete(requestId);
@@ -276,25 +222,43 @@ ENDCLASS.`
         try {
             setStatus({ type: 'info', msg: 'Checking object existence...' });
 
-            // 1. CHECK EXISTENCE
+            // 1. CHECK EXISTENCE (using Search)
             let exists = false;
             try {
-                await callMcpTool('objectRegistrationInfo', { objectUrl });
-                exists = true;
-                console.log(`Object ${objectName} exists.`);
+                // Query for object
+                const searchRes = await callMcpTool('searchObject', {
+                    query: objectName.toUpperCase()
+                });
+                console.log("[MCP] Search Result:", searchRes);
+
+                // Check if object is in result list
+                if (Array.isArray(searchRes)) {
+                    exists = searchRes.some(obj =>
+                        obj.name === objectName.toUpperCase() &&
+                        (obj.type === 'CLAS/OC' || obj.type === 'CLAS')
+                    );
+                }
+
+                if (exists) console.log(`Object ${objectName} found in system.`);
+                else console.log(`Object ${objectName} NOT found.`);
+
             } catch (e) {
-                console.log("Object check failed (likely 404):", e.message);
+                console.log("Search failed or returned error:", e);
                 exists = false;
             }
 
             if (exists) {
+                // 2. CONFIRM UPDATE
                 const confirm = window.confirm(`Object ${objectName} is available in the system, want to update?`);
                 if (!confirm) {
                     setStatus({ type: 'info', msg: 'Operation cancelled by user.' });
                     return;
                 }
+
+                // 3. EXECUTE UPDATE
                 await handleUpdateObject(objectName, objectUrl, sourceCode, transport);
             } else {
+                // 4. EXECUTE CREATE
                 await handleCreateObject(objectName, pkg, transport, sourceCode);
             }
 
@@ -313,8 +277,10 @@ ENDCLASS.`
 
             // 1. LOCK
             const lockRes = await callMcpTool('lock', { objectUrl, accessMode: 'MODIFY' });
+            if (!lockRes || !lockRes.lockHandle) {
+                throw new Error("Lock failed. Object might not exist or is locked by another user.");
+            }
             const lockHandle = lockRes.lockHandle;
-            if (!lockHandle) throw new Error("Could not acquire lock handle");
             console.log("Locked:", lockHandle);
 
             // 2. SET SOURCE
@@ -352,7 +318,7 @@ ENDCLASS.`
         try {
             const parentPath = `/sap/bc/adt/packages/${pkg.toLowerCase()}`;
 
-            setStatus({ type: 'info', msg: 'Create: Creating Object...' });
+            setStatus({ type: 'info', msg: `Create: Creating ${objectName}...` });
             await callMcpTool('createObject', {
                 objtype: 'CLAS/OC', // HARDCODED
                 name: objectName.toUpperCase(),
@@ -375,37 +341,16 @@ ENDCLASS.`
         <div className="settings-panel" style={{ marginTop: '0', marginBottom: '20px' }}>
             <h2>SAP System Connection</h2>
             <form onSubmit={isLoggedIn ? (e) => { e.preventDefault(); handleLogout(); } : handleLogin} className="settings-grid">
-                <label className="field">
-                    <span>SAP URL</span>
-                    <input type="text" placeholder="https://example.sap.corp:44300"
-                        value={sapConfig.url} onChange={(e) => handleChange('url', e.target.value)} disabled={isLoggedIn || isLoading} />
-                </label>
-                <label className="field">
-                    <span>Client</span>
-                    <input type="text" placeholder="100"
-                        value={sapConfig.client} onChange={(e) => handleChange('client', e.target.value)} disabled={isLoggedIn || isLoading} />
-                </label>
-                <label className="field">
-                    <span>User</span>
-                    <input type="text" placeholder="User"
-                        value={sapConfig.user} onChange={(e) => handleChange('user', e.target.value)} disabled={isLoggedIn || isLoading} />
-                </label>
-                <label className="field">
-                    <span>Password</span>
-                    <input type="password" placeholder="Password"
-                        value={sapConfig.password} onChange={(e) => handleChange('password', e.target.value)} disabled={isLoggedIn || isLoading} />
-                </label>
+                <label className="field"><span>SAP URL</span><input type="text" placeholder="https://example.sap.corp:44300" value={sapConfig.url} onChange={(e) => handleChange('url', e.target.value)} disabled={isLoggedIn || isLoading} /></label>
+                <label className="field"><span>Client</span><input type="text" placeholder="100" value={sapConfig.client} onChange={(e) => handleChange('client', e.target.value)} disabled={isLoggedIn || isLoading} /></label>
+                <label className="field"><span>User</span><input type="text" placeholder="User" value={sapConfig.user} onChange={(e) => handleChange('user', e.target.value)} disabled={isLoggedIn || isLoading} /></label>
+                <label className="field"><span>Password</span><input type="password" placeholder="Password" value={sapConfig.password} onChange={(e) => handleChange('password', e.target.value)} disabled={isLoggedIn || isLoading} /></label>
 
                 {status.msg && (
-                    <div style={{
-                        fontSize: '12px', padding: '8px', borderRadius: '4px',
-                        background: status.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
-                        color: status.type === 'error' ? '#ef4444' : (status.type === 'success' ? '#10b981' : '#6b7280')
-                    }}>
+                    <div style={{ fontSize: '12px', padding: '8px', borderRadius: '4px', background: status.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)', color: status.type === 'error' ? '#ef4444' : (status.type === 'success' ? '#10b981' : '#6b7280') }}>
                         {status.msg}
                     </div>
                 )}
-
                 <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={isLoading}>
                     {isLoading ? 'Connecting...' : (isLoggedIn ? 'Logout' : 'Login')}
                 </button>
