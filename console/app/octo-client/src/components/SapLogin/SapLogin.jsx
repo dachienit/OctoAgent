@@ -299,12 +299,17 @@ ENDCLASS.`
             // 4. ACTIVATE
             setStatus({ type: 'info', msg: 'Update: Activating...' });
             const activeRes = await callMcpTool('activateByName', { objectName, objectUrl });
+            console.log("[MCP] Activation Result:", activeRes);
 
             // Parse Activation Messages for Errors
-            // result structure usually: { messages: [ { shortText, type: 'E'|'W'|'I', ... } ] }
+            // result structure might be: { messages: [ { shortText, type: 'E', severity: 'E', ... } ] }
             if (activeRes && activeRes.messages) {
-                const errors = activeRes.messages.filter(m => m.type === 'E');
-                const warnings = activeRes.messages.filter(m => m.type === 'W');
+                const errors = activeRes.messages.filter(m =>
+                    m.type === 'E' || m.severity === 'E' || m.type === 'error' || m.severity === 'error'
+                );
+                const warnings = activeRes.messages.filter(m =>
+                    m.type === 'W' || m.severity === 'W' || m.type === 'warning' || m.severity === 'warning'
+                );
 
                 if (errors.length > 0) {
                     const errorMsg = errors.map(e => `[ERROR] Line ${e.unitLine || '?'}: ${e.shortText}`).join('\n');
