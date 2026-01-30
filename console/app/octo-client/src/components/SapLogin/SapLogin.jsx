@@ -312,7 +312,7 @@ ENDCLASS.`
                 );
 
                 if (errors.length > 0) {
-                    const errorMsg = errors.map(e => `[ERROR] Line ${e.unitLine || '?'}: ${e.shortText}`).join('\n');
+                    const errorMsg = errors.map(e => `[ERROR] Line ${e.line || e.unitLine || '?'}: ${e.shortText}`).join('\n');
                     alert("Activation Failed with Errors:\n" + errorMsg);
                     setStatus({ type: 'error', msg: 'Activation Failed' });
                     return; // Stop here
