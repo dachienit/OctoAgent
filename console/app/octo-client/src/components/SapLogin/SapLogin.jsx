@@ -62,6 +62,9 @@ ENDCLASS.`
             const eventSource = new EventSource('http://localhost:3001/sse');
             eventSourceRef.current = eventSource;
 
+            // Clean up old listeners/requests on new connection logic if needed
+            // But here we just init
+
             eventSource.onopen = () => {
                 console.log("[SSE] Connection Opened!");
                 setStatus({ type: 'info', msg: 'Connected to Server. Waiting for endpoint...' });
@@ -185,7 +188,7 @@ ENDCLASS.`
                     pendingRequests.current.delete(requestId);
                     reject(new Error(`Timeout waiting for response to ${name} (ID: ${requestId})`));
                 }
-            }, 30000);
+            }, 60000); // Increased timeout for long ops
 
             pendingRequests.current.set(requestId, { resolve, reject, timeout });
 
@@ -218,10 +221,9 @@ ENDCLASS.`
         try {
             setStatus({ type: 'info', msg: 'Checking object existence...' });
 
-            // 1. CHECK EXISTENCE
+            // 1. CHECK EXISTENCE (using SearchObject)
             let exists = false;
             try {
-                // Query for object
                 const searchRes = await callMcpTool('searchObject', {
                     query: objectName.toUpperCase()
                 });
@@ -233,12 +235,11 @@ ENDCLASS.`
                         (obj["adtcore:type"] === 'CLAS/OC' || obj["adtcore:type"] === 'CLAS')
                     );
                 } else {
-                    console.log("Search result structure unexpected or empty:", searchRes);
                     exists = false;
                 }
 
-                if (exists) console.log(`Object ${objectName} found in search results.`);
-                else console.log(`Object ${objectName} NOT found in search results.`);
+                if (exists) console.log(`Object ${objectName} found.`);
+                else console.log(`Object ${objectName} NOT found.`);
 
             } catch (e) {
                 console.log("Search failed or returned error:", e);
@@ -265,6 +266,7 @@ ENDCLASS.`
 
     const handleUpdateObject = async (objectName, objectUrl, sourceCode, transport) => {
         const objectSourceUrl = `${objectUrl}/source/main`;
+        let lockHandle = null;
 
         try {
             setStatus({ type: 'info', msg: 'Update: Locking...' });
@@ -274,7 +276,8 @@ ENDCLASS.`
             if (!lockRes || !lockRes.lockHandle) {
                 throw new Error("Lock failed. Object might be locked by another user.");
             }
-            const lockHandle = lockRes.lockHandle;
+            lockHandle = lockRes.lockHandle;
+            console.log("Locked:", lockHandle);
 
             // 2. SET SOURCE
             setStatus({ type: 'info', msg: 'Update: Setting Source...' });
@@ -284,13 +287,10 @@ ENDCLASS.`
                 lockHandle,
                 transport
             });
+            console.log("Source Set!");
 
-            // 3. UNLOCK
-            setStatus({ type: 'info', msg: 'Update: Unlocking...' });
-            await callMcpTool('unLock', { objectUrl, lockHandle });
-            console.log("Unlocked!");
-
-            // 3.5 SYNTAX CHECK
+            // 3. SYNTAX CHECK 
+            // Correct order: Lock -> Set Source -> Syntax Check -> Activate -> Unlock
             setStatus({ type: 'info', msg: 'Update: Checking Syntax...' });
             const syntaxCheckRes = await callMcpTool('syntaxCheckCode', {
                 code: sourceCode,
@@ -299,30 +299,26 @@ ENDCLASS.`
             });
             console.log("[MCP] Syntax Check Result:", syntaxCheckRes);
 
-            if (syntaxCheckRes) {
-                let errors = [];
-                // Handle direct array
-                if (Array.isArray(syntaxCheckRes)) {
-                    errors = syntaxCheckRes;
+            // Parsing: { status: 'success', result: [ { severity: 'E', ... } ] }
+            let syntaxErrors = [];
+            if (syntaxCheckRes && syntaxCheckRes.result) {
+                // If it's the wrapper object
+                if (Array.isArray(syntaxCheckRes.result)) {
+                    syntaxErrors = syntaxCheckRes.result.filter(m => m.severity === 'E');
                 }
-                // Handle Object with messages
-                else if (syntaxCheckRes.messages) {
-                    errors = syntaxCheckRes.messages.filter(m => m.type === 'E');
-                }
-                // Handle nested structure (rare but possible depending on tool format)
-                else if (syntaxCheckRes.result && Array.isArray(syntaxCheckRes.result)) {
-                    errors = syntaxCheckRes.result;
-                }
-
-                if (errors.length > 0) {
-                    const errorMsg = errors.map(e => `[ERROR] Line ${e.line || e.unitLine || '?'}: ${e.shortText}`).join('\n');
-                    alert("Syntax Check Failed:\n" + errorMsg);
-                    setStatus({ type: 'error', msg: 'Syntax Check Failed' });
-                    return;
-                }
+            } else if (Array.isArray(syntaxCheckRes)) {
+                // If it was already unwrapped
+                syntaxErrors = syntaxCheckRes.filter(m => m.severity === 'E');
             }
 
-            // 4. ACTIVATE
+            if (syntaxErrors.length > 0) {
+                const errorMsg = syntaxErrors.map(e => `[ERROR] Line ${e.line}: ${e.text}`).join('\n');
+                alert("Syntax Check Failed:\n" + errorMsg);
+                setStatus({ type: 'error', msg: 'Syntax Check Failed' });
+                return; // Abort Activation, will proceed to finally { unlock }
+            }
+
+            // 4. ACTIVATE (Only if no errors)
             setStatus({ type: 'info', msg: 'Update: Activating...' });
             const activeRes = await callMcpTool('activateByName', { objectName, objectUrl });
             console.log("[MCP] Activation Result:", activeRes);
@@ -339,6 +335,7 @@ ENDCLASS.`
                     const errorMsg = errors.map(e => `[ERROR] Line ${e.line || e.unitLine || '?'}: ${e.shortText}`).join('\n');
                     alert("Activation Failed with Errors:\n" + errorMsg);
                     setStatus({ type: 'error', msg: 'Activation Failed' });
+                    // Will proceed to finally { unlock }
                     return;
                 }
 
@@ -355,7 +352,20 @@ ENDCLASS.`
             setStatus({ type: 'success', msg: 'Update Complete' });
 
         } catch (e) {
-            throw new Error("Update Flow: " + e.message);
+            console.error("Update Flow Error:", e);
+            alert("Update Error: " + e.message);
+            setStatus({ type: 'error', msg: e.message });
+        } finally {
+            // 5. UNLOCK (Always try to unlock if we have a handle)
+            if (lockHandle) {
+                setStatus({ type: 'info', msg: 'Update: Unlocking...' });
+                try {
+                    await callMcpTool('unLock', { objectUrl, lockHandle });
+                    console.log("Unlocked!");
+                } catch (unlockErr) {
+                    console.error("Unlock failed:", unlockErr);
+                }
+            }
         }
     };
 
