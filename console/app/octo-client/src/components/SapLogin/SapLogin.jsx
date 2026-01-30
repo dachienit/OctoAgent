@@ -8,7 +8,6 @@ const SapLogin = () => {
         password: ''
     });
 
-    // New state for Test Inputs
     const [testInputs, setTestInputs] = useState({
         transport: 'S4HK902742',
         package: 'ZPK_IYH1HC',
@@ -38,12 +37,15 @@ ENDCLASS.`
     });
 
     const [isLoggedIn, setIsLoggedIn] = useState(false);
-    const [status, setStatus] = useState({ type: '', msg: '' }); // type: 'error' | 'success' | 'info'
+    const [status, setStatus] = useState({ type: '', msg: '' });
     const [isLoading, setIsLoading] = useState(false);
 
     // SSE & MCP State
     const eventSourceRef = useRef(null);
     const postEndpointRef = useRef(null);
+
+    // Pending Requests Map: RequestID -> { resolve, reject, timer }
+    const pendingRequests = useRef(new Map());
 
     const handleChange = (field, value) => {
         setSapConfig(prev => ({ ...prev, [field]: value }));
@@ -59,7 +61,6 @@ ENDCLASS.`
         setIsLoading(true);
 
         try {
-            // 1. Connect SSE
             const eventSource = new EventSource('http://localhost:3001/sse');
             eventSourceRef.current = eventSource;
 
@@ -68,7 +69,6 @@ ENDCLASS.`
                 setStatus({ type: 'info', msg: 'Connected to Server. Waiting for endpoint...' });
             };
 
-            // Handle 'endpoint' event
             eventSource.addEventListener('endpoint', async (event) => {
                 const data = event.data;
                 console.log("[SSE] Endpoint Event:", data);
@@ -76,33 +76,18 @@ ENDCLASS.`
                 postEndpointRef.current = `http://localhost:3001${data}`;
                 console.log("[SSE] Endpoint received:", postEndpointRef.current);
 
-                // 3. Send Login POST
                 setStatus({ type: 'info', msg: 'Authenticating...' });
                 try {
-                    const payload = {
-                        "jsonrpc": "2.0",
-                        "method": "tools/call",
-                        "params": {
-                            "name": "login",
-                            "arguments": {
-                                "SAP_URL": sapConfig.url,
-                                "SAP_USER": sapConfig.user,
-                                "SAP_PASSWORD": sapConfig.password,
-                                "SAP_CLIENT": sapConfig.client,
-                                "SAP_LANGUAGE": "EN",
-                                "NODE_TLS_REJECT_UNAUTHORIZED": "0"
-                            }
-                        },
-                        "id": 1
-                    };
-
-                    await fetch(postEndpointRef.current, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(payload)
-                    });
+                    // Login uses ID 1
+                    await callMcpTool('login', {
+                        "SAP_URL": sapConfig.url,
+                        "SAP_USER": sapConfig.user,
+                        "SAP_PASSWORD": sapConfig.password,
+                        "SAP_CLIENT": sapConfig.client,
+                        "SAP_LANGUAGE": "EN",
+                        "NODE_TLS_REJECT_UNAUTHORIZED": "0"
+                    }, 1);
                     console.log("[MCP] Login Request Sent");
-
                 } catch (err) {
                     setStatus({ type: 'error', msg: `Connection Error: ${err.message}` });
                     cleanup();
@@ -113,20 +98,44 @@ ENDCLASS.`
                 const data = event.data;
                 console.log("[SSE] Message:", data);
 
-                // 2. Handle Endpoint (Sent initially)
+                // Handle Endpoint (Sent initially or repeatedly)
                 if (data.startsWith('/')) {
                     postEndpointRef.current = `http://localhost:3001${data}`;
                     return;
                 }
 
-                // 4. Handle Result (JSON-RPC)
+                // Handle JSON-RPC Result
                 try {
                     const json = JSON.parse(data);
 
+                    // Check if this result matches a pending request
+                    if (json.id && pendingRequests.current.has(json.id)) {
+                        const { resolve, reject, timeout } = pendingRequests.current.get(json.id);
+                        clearTimeout(timeout);
+                        pendingRequests.current.delete(json.id);
+
+                        if (json.error) {
+                            reject(new Error(json.error.message));
+                        } else {
+                            // Extract content if available
+                            if (json.result && json.result.content && json.result.content[0] && json.result.content[0].text) {
+                                try {
+                                    const inner = JSON.parse(json.result.content[0].text);
+                                    resolve(inner);
+                                } catch {
+                                    resolve(json.result.content[0].text);
+                                }
+                            } else {
+                                resolve(json.result);
+                            }
+                        }
+                        return; // Handled as request response
+                    }
+
+                    // Handle legacy login success check (if not handled by pendingRequests above)
+                    // or other unsolicited messages
                     if (json.result && json.result.content && json.result.content[0]) {
                         const innerText = json.result.content[0].text;
-
-                        // Parse inner JSON string if it exists
                         let resultObj;
                         try {
                             resultObj = JSON.parse(innerText);
@@ -135,25 +144,28 @@ ENDCLASS.`
                         }
 
                         if (resultObj.message && resultObj.message.includes("Login configuration updated")) {
-                            // SUCCESS
                             setIsLoggedIn(true);
                             setStatus({ type: 'success', msg: 'Login Successful' });
                             setIsLoading(false);
-                        } else if (resultObj.error) {
-                            // FAILURE
-                            throw new Error(resultObj.error);
+                            // Also resolve ID 1 if pending
+                            if (pendingRequests.current.has(1)) {
+                                const { resolve, timeout } = pendingRequests.current.get(1);
+                                clearTimeout(timeout);
+                                pendingRequests.current.delete(1);
+                                resolve(resultObj);
+                            }
                         } else {
-                            // GENERIC RESULT
-                            console.log("[SSE] Tool Result:", resultObj);
+                            console.log("[SSE] Tool Result (Unsolicited):", resultObj);
                         }
                     } else if (json.error) {
-                        throw new Error(json.error.message || "Unknown RPC Error");
+                        console.error("[SSE] RPC Error:", json.error);
+                        if (json.id === 1 || !isLoggedIn) {
+                            setStatus({ type: 'error', msg: json.error.message });
+                        }
                     }
 
                 } catch (err) {
                     console.error("[SSE] Error parsing result:", err);
-                    setStatus({ type: 'error', msg: err.message });
-                    cleanup(); // disconnect on failure
                 }
             };
 
@@ -175,27 +187,12 @@ ENDCLASS.`
         if (postEndpointRef.current) {
             setStatus({ type: 'info', msg: 'Logging out...' });
             try {
-                const payload = {
-                    "jsonrpc": "2.0",
-                    "method": "tools/call",
-                    "params": {
-                        "name": "logout",
-                        "arguments": {}
-                    },
-                    "id": 2
-                };
-
-                await fetch(postEndpointRef.current, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                });
-                console.log("[MCP] Logout Request Sent");
+                // Fire and forget logout? or wait?
+                callMcpTool('logout', {}, 2).catch(console.error);
             } catch (err) {
                 console.error("Logout failed", err);
             }
         }
-
         cleanup();
         setIsLoggedIn(false);
         setStatus({ type: 'info', msg: 'Logged out' });
@@ -207,6 +204,12 @@ ENDCLASS.`
             eventSourceRef.current = null;
         }
         setIsLoading(false);
+        // Reject all pending
+        pendingRequests.current.forEach(({ reject, timeout }) => {
+            clearTimeout(timeout);
+            reject(new Error("Connection closed"));
+        });
+        pendingRequests.current.clear();
     };
 
     useEffect(() => {
@@ -215,37 +218,49 @@ ENDCLASS.`
         };
     }, []);
 
-    // --- WORKFLOW HELPERS ---
-    const callMcpTool = async (name, args, id = Date.now()) => {
-        if (!postEndpointRef.current) throw new Error("No Endpoint. Login first.");
+    // --- ASYNC MCP TOOL CALLER ---
+    const callMcpTool = (name, args, id = null) => {
+        if (!postEndpointRef.current) return Promise.reject(new Error("No Endpoint. Login first."));
 
-        const payload = {
-            "jsonrpc": "2.0",
-            "method": "tools/call",
-            "params": { name, arguments: args },
-            "id": id
-        };
+        const requestId = id || Date.now();
 
-        const res = await fetch(postEndpointRef.current, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-        });
+        return new Promise(async (resolve, reject) => {
+            // Set 30s timeout
+            const timeout = setTimeout(() => {
+                if (pendingRequests.current.has(requestId)) {
+                    pendingRequests.current.delete(requestId);
+                    reject(new Error(`Timeout waiting for response to ${name} (ID: ${requestId})`));
+                }
+            }, 30000);
 
-        const json = await res.json();
-        if (json.error) throw new Error(`${name} failed: ${json.error.message}`);
+            // Register promise
+            pendingRequests.current.set(requestId, { resolve, reject, timeout });
 
-        // Check for inner content text parsing requirement
-        let result = json.result;
-        if (result && result.content && result.content[0] && result.content[0].text) {
+            const payload = {
+                "jsonrpc": "2.0",
+                "method": "tools/call",
+                "params": { name, arguments: args },
+                "id": requestId
+            };
+
             try {
-                const inner = JSON.parse(result.content[0].text);
-                return inner;
-            } catch {
-                return result.content[0].text;
+                const res = await fetch(postEndpointRef.current, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                // We expect "Accepted" text or similar, so we don't try to parse JSON here
+                // unless it is NOT "Accepted".
+                const text = await res.text();
+                // console.log(`[MCP] ${name} sent. Response:`, text);
+
+            } catch (networkErr) {
+                clearTimeout(timeout);
+                pendingRequests.current.delete(requestId);
+                reject(networkErr);
             }
-        }
-        return result;
+        });
     };
 
     const handleSaveToSap = async () => {
@@ -258,28 +273,22 @@ ENDCLASS.`
             // 1. CHECK EXISTENCE
             let exists = false;
             try {
-                // Try to get registration info. If it succeeds, object exists.
                 await callMcpTool('objectRegistrationInfo', { objectUrl });
                 exists = true;
                 console.log(`Object ${objectName} exists.`);
             } catch (e) {
-                // If 404 or similar, assume not exists. 
-                console.log("Object check failed, assuming non-existence or error:", e);
+                console.log("Object check failed (likely 404):", e.message);
                 exists = false;
             }
 
             if (exists) {
-                // 2. CONFIRM UPDATE
                 const confirm = window.confirm(`Object ${objectName} is available in the system, want to update?`);
                 if (!confirm) {
                     setStatus({ type: 'info', msg: 'Operation cancelled by user.' });
                     return;
                 }
-
-                // 3. EXECUTE UPDATE
                 await handleUpdateObject(objectName, objectUrl, sourceCode, transport);
             } else {
-                // 4. EXECUTE CREATE
                 await handleCreateObject(objectName, pkg, transport, sourceCode);
             }
 
@@ -321,7 +330,6 @@ ENDCLASS.`
             setStatus({ type: 'info', msg: 'Update: Activating...' });
             const activeRes = await callMcpTool('activateByName', { objectName, objectUrl });
 
-            // Show result
             let messages = "Activation Done.";
             if (activeRes && activeRes.messages) {
                 messages = activeRes.messages.map(m => m.shortText).join('\n');
@@ -336,8 +344,6 @@ ENDCLASS.`
 
     const handleCreateObject = async (objectName, pkg, transport, sourceCode) => {
         try {
-            setStatus({ type: 'info', msg: 'Create: Initialize...' });
-
             const parentPath = `/sap/bc/adt/packages/${pkg.toLowerCase()}`;
 
             setStatus({ type: 'info', msg: 'Create: Creating Object...' });
@@ -347,11 +353,10 @@ ENDCLASS.`
                 parentName: pkg.toUpperCase(),
                 description: 'Generated by OctoAgent',
                 parentPath: parentPath,
-                transport: transport // Optional
+                transport: transport
             });
             console.log("Object Created!");
 
-            // 2. Update Content (Reuse Update Workflow)
             const objectUrl = `/sap/bc/adt/oo/classes/${objectName.toLowerCase()}`;
             await handleUpdateObject(objectName, objectUrl, sourceCode, transport);
 
@@ -366,50 +371,28 @@ ENDCLASS.`
             <form onSubmit={isLoggedIn ? (e) => { e.preventDefault(); handleLogout(); } : handleLogin} className="settings-grid">
                 <label className="field">
                     <span>SAP URL</span>
-                    <input
-                        type="text"
-                        placeholder="https://example.sap.corp:44300"
-                        value={sapConfig.url}
-                        onChange={(e) => handleChange('url', e.target.value)}
-                        disabled={isLoggedIn || isLoading}
-                    />
+                    <input type="text" placeholder="https://example.sap.corp:44300"
+                        value={sapConfig.url} onChange={(e) => handleChange('url', e.target.value)} disabled={isLoggedIn || isLoading} />
                 </label>
                 <label className="field">
-                    <span>SAP Client</span>
-                    <input
-                        type="text"
-                        placeholder="100"
-                        value={sapConfig.client}
-                        onChange={(e) => handleChange('client', e.target.value)}
-                        disabled={isLoggedIn || isLoading}
-                    />
+                    <span>Client</span>
+                    <input type="text" placeholder="100"
+                        value={sapConfig.client} onChange={(e) => handleChange('client', e.target.value)} disabled={isLoggedIn || isLoading} />
                 </label>
                 <label className="field">
-                    <span>SAP User</span>
-                    <input
-                        type="text"
-                        placeholder="User"
-                        value={sapConfig.user}
-                        onChange={(e) => handleChange('user', e.target.value)}
-                        disabled={isLoggedIn || isLoading}
-                    />
+                    <span>User</span>
+                    <input type="text" placeholder="User"
+                        value={sapConfig.user} onChange={(e) => handleChange('user', e.target.value)} disabled={isLoggedIn || isLoading} />
                 </label>
                 <label className="field">
-                    <span>SAP Password</span>
-                    <input
-                        type="password"
-                        placeholder="Password"
-                        value={sapConfig.password}
-                        onChange={(e) => handleChange('password', e.target.value)}
-                        disabled={isLoggedIn || isLoading}
-                    />
+                    <span>Password</span>
+                    <input type="password" placeholder="Password"
+                        value={sapConfig.password} onChange={(e) => handleChange('password', e.target.value)} disabled={isLoggedIn || isLoading} />
                 </label>
 
                 {status.msg && (
                     <div style={{
-                        fontSize: '12px',
-                        padding: '8px',
-                        borderRadius: '4px',
+                        fontSize: '12px', padding: '8px', borderRadius: '4px',
                         background: status.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : 'rgba(16, 185, 129, 0.1)',
                         color: status.type === 'error' ? '#ef4444' : (status.type === 'success' ? '#10b981' : '#6b7280')
                     }}>
@@ -417,74 +400,22 @@ ENDCLASS.`
                     </div>
                 )}
 
-                <button
-                    type="submit"
-                    className="btn-primary"
-                    style={{ width: '100%' }}
-                    disabled={isLoading}
-                >
+                <button type="submit" className="btn-primary" style={{ width: '100%' }} disabled={isLoading}>
                     {isLoading ? 'Connecting...' : (isLoggedIn ? 'Logout' : 'Login')}
                 </button>
             </form>
 
-            {/* TEST OPERATIONS AREA */}
             {isLoggedIn && (
                 <div style={{ marginTop: '20px', borderTop: '1px solid #ddd', paddingTop: '10px' }}>
                     <h3>Test MCP Operations</h3>
                     <div className="settings-grid">
-                        <label className="field">
-                            <span>Transport (TR)</span>
-                            <input
-                                type="text"
-                                value={testInputs.transport}
-                                onChange={(e) => handleTestChange('transport', e.target.value)}
-                            />
-                        </label>
-                        <label className="field">
-                            <span>Package</span>
-                            <input
-                                type="text"
-                                value={testInputs.package}
-                                onChange={(e) => handleTestChange('package', e.target.value)}
-                            />
-                        </label>
-                        <label className="field">
-                            <span>Object Name</span>
-                            <input
-                                type="text"
-                                value={testInputs.objectName}
-                                onChange={(e) => handleTestChange('objectName', e.target.value)}
-                            />
-                        </label>
-                        <label className="field" style={{ gridColumn: '1 / -1' }}>
-                            <span>Source Code</span>
-                            <textarea
-                                value={testInputs.sourceCode}
-                                onChange={(e) => handleTestChange('sourceCode', e.target.value)}
-                                style={{
-                                    width: '100%',
-                                    minHeight: '200px',
-                                    fontFamily: 'monospace',
-                                    fontSize: '12px',
-                                    background: '#2d2d2d',
-                                    color: '#f8f8f2',
-                                    border: '1px solid #444',
-                                    borderRadius: '4px',
-                                    padding: '8px'
-                                }}
-                            />
-                        </label>
+                        <label className="field"><span>Transport (TR)</span><input type="text" value={testInputs.transport} onChange={(e) => handleTestChange('transport', e.target.value)} /></label>
+                        <label className="field"><span>Package</span><input type="text" value={testInputs.package} onChange={(e) => handleTestChange('package', e.target.value)} /></label>
+                        <label className="field"><span>Object Name</span><input type="text" value={testInputs.objectName} onChange={(e) => handleTestChange('objectName', e.target.value)} /></label>
+                        <label className="field" style={{ gridColumn: '1 / -1' }}><span>Source Code</span><textarea value={testInputs.sourceCode} onChange={(e) => handleTestChange('sourceCode', e.target.value)} style={{ width: '100%', minHeight: '200px', fontFamily: 'monospace', fontSize: '12px', background: '#2d2d2d', color: '#f8f8f2', border: '1px solid #444', borderRadius: '4px', padding: '8px' }} /></label>
                     </div>
-
                     <div style={{ marginTop: '10px' }}>
-                        <button
-                            type="button"
-                            className="btn-primary"
-                            style={{ width: '100%', background: '#10b981' }}
-                            onClick={handleSaveToSap}
-                        >
-                            Save to SAP System
-                        </button>
+                        <button type="button" className="btn-primary" style={{ width: '100%', background: '#10b981' }} onClick={handleSaveToSap}>Save to SAP System</button>
                     </div>
                 </div>
             )}
