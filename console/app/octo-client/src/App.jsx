@@ -329,12 +329,12 @@ function App() {
   };
 
   const handleApplyCode = async (code, context) => {
-    /* if (!mcp.isLoggedIn) {
+    if (!mcp.isLoggedIn) {
       alert("Please login to SAP System (Left Sidebar) before applying code.");
       // Open left sidebar if closed
       if (!leftOpen) setLeftOpen(true);
       return;
-    } */
+    }
 
     const metadata = extractMetadata(context);
     console.log('[Apply] Metadata:', metadata);
@@ -348,31 +348,56 @@ function App() {
   };
 
   const handleDeploySubmit = async (inputs) => {
-    // inputs: { packageName, trNumber, description }
-    // deployData: { code, metadata }
 
+    // Merge inputs with original data for full context if needed, but saveToSap takes specific inputs
     const payload = {
-      package: inputs.packageName,
-      transport: inputs.trNumber,
-      objectName: deployData.metadata.objectName || '',
-      sourceCode: deployData.code,
-      // description: inputs.description (Not yet used by saveToSap, but good to have)
+      ...inputs, // packageName, trNumber, description, objectType, objectName
+      sourceCode: deployData.code
     };
-
-    if (!payload.objectName) {
-      alert("Could not determine Object Name from chat context. Please ensure the context above the code block contains 'Object Name: ...'");
-      return;
-    }
 
     setIsDeploying(true);
     try {
-      await saveToSap(payload, mcp.callMcpTool, mcp.setStatus);
-      // If successful (no throw), close modal
+      const result = await saveToSap(payload, mcp.callMcpTool, mcp.setStatus);
       setDeployModalOpen(false);
-      alert("Deployment process completed.");
+
+      // Construct Chat Response
+      let responseText = "";
+      const codeBlock = `\`\`\`abap\n${deployData.code}\n\`\`\``;
+
+      if (result && result.success) {
+        responseText = `
+Implemented into the SAP system
+
+*   **Object type:** \`${result.objectType}\`
+*   **Object name:** \`${result.objectName}\`
+*   **Logic code:**
+${codeBlock}
+`;
+      } else {
+        const errorList = result && result.errors ? result.errors.map(e => `- ${e}`).join('\n') : "Unknown Error";
+        responseText = `
+Implemented in the SAP system with some issues!
+
+*   **Object type:** \`${result.objectType || inputs.objectType}\`
+*   **Object name:** \`${result.objectName || inputs.objectName}\`
+*   **Error:**
+${errorList}
+*   **Logic code:**
+${codeBlock}
+`;
+      }
+
+      // Add to Chat
+      setMessages(prev => [...prev, {
+        role: 'bot',
+        text: responseText.trim(),
+        sender: 'Octo Agent',
+        time: formatTime()
+      }]);
+
     } catch (err) {
-      console.error("Deploy Error:", err);
-      // Error is handled by setStatus usually, but we catch here to stop loading state
+      console.error("Deploy Critical Error:", err);
+      alert("Critical Deployment Error: " + err.message);
     } finally {
       setIsDeploying(false);
     }

@@ -47,12 +47,12 @@ const DeployModal = ({ isOpen, onClose, onDeploy, metadata, startLoading }) => {
                 </div>
                 <div className="modal-body" style={{ padding: '20px', background: '#fff' }}>
                     <div style={{ marginBottom: '15px' }}>
-                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: '#000', fontWeight: '500' }}>Object Type <span style={{ color: 'red' }}>*</span></label>
+                        <label style={{ display: 'block', marginBottom: '5px', fontSize: '13px', color: '#000', fontWeight: '500' }}>Object Type</label>
                         <input
                             type="text"
                             value={inputs.objectType}
-                            onChange={e => handleChange('objectType', e.target.value)}
-                            style={inputStyle}
+                            readOnly
+                            style={readOnlyStyle}
                         />
                     </div>
                     <div style={{ marginBottom: '15px' }}>
