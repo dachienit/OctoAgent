@@ -218,7 +218,7 @@ ENDCLASS.`
         try {
             setStatus({ type: 'info', msg: 'Checking object existence...' });
 
-            // 1. CHECK EXISTENCE (using SearchObject as requested)
+            // 1. CHECK EXISTENCE
             let exists = false;
             try {
                 // Query for object
@@ -227,15 +227,12 @@ ENDCLASS.`
                 });
                 console.log("[MCP] Search Result:", searchRes);
 
-                // Check results based on user's spec:
-                // results: [ { "adtcore:name": "...", "adtcore:type": "CLAS/OC", ... } ]
                 if (searchRes && Array.isArray(searchRes.results)) {
                     exists = searchRes.results.some(obj =>
                         obj["adtcore:name"] === objectName.toUpperCase() &&
-                        (obj["adtcore:type"] === 'CLAS/OC' || obj["adtcore:type"] === 'CLAS') // Handle variants
+                        (obj["adtcore:type"] === 'CLAS/OC' || obj["adtcore:type"] === 'CLAS')
                     );
                 } else {
-                    // Safety check if results is missing or structure differs
                     console.log("Search result structure unexpected or empty:", searchRes);
                     exists = false;
                 }
@@ -249,17 +246,13 @@ ENDCLASS.`
             }
 
             if (exists) {
-                // 2. CONFIRM UPDATE
                 const confirm = window.confirm(`Object ${objectName} is available in the system, want to update?`);
                 if (!confirm) {
                     setStatus({ type: 'info', msg: 'Operation cancelled by user.' });
                     return;
                 }
-
-                // 3. EXECUTE UPDATE
                 await handleUpdateObject(objectName, objectUrl, sourceCode, transport);
             } else {
-                // 4. EXECUTE CREATE
                 await handleCreateObject(objectName, pkg, transport, sourceCode);
             }
 
@@ -295,14 +288,45 @@ ENDCLASS.`
             // 3. UNLOCK
             setStatus({ type: 'info', msg: 'Update: Unlocking...' });
             await callMcpTool('unLock', { objectUrl, lockHandle });
+            console.log("Unlocked!");
+
+            // 3.5 SYNTAX CHECK
+            setStatus({ type: 'info', msg: 'Update: Checking Syntax...' });
+            const syntaxCheckRes = await callMcpTool('syntaxCheckCode', {
+                code: sourceCode,
+                url: objectSourceUrl,
+                mainUrl: objectSourceUrl
+            });
+            console.log("[MCP] Syntax Check Result:", syntaxCheckRes);
+
+            if (syntaxCheckRes) {
+                let errors = [];
+                // Handle direct array
+                if (Array.isArray(syntaxCheckRes)) {
+                    errors = syntaxCheckRes;
+                }
+                // Handle Object with messages
+                else if (syntaxCheckRes.messages) {
+                    errors = syntaxCheckRes.messages.filter(m => m.type === 'E');
+                }
+                // Handle nested structure (rare but possible depending on tool format)
+                else if (syntaxCheckRes.result && Array.isArray(syntaxCheckRes.result)) {
+                    errors = syntaxCheckRes.result;
+                }
+
+                if (errors.length > 0) {
+                    const errorMsg = errors.map(e => `[ERROR] Line ${e.line || e.unitLine || '?'}: ${e.shortText}`).join('\n');
+                    alert("Syntax Check Failed:\n" + errorMsg);
+                    setStatus({ type: 'error', msg: 'Syntax Check Failed' });
+                    return;
+                }
+            }
 
             // 4. ACTIVATE
             setStatus({ type: 'info', msg: 'Update: Activating...' });
             const activeRes = await callMcpTool('activateByName', { objectName, objectUrl });
             console.log("[MCP] Activation Result:", activeRes);
 
-            // Parse Activation Messages for Errors
-            // result structure might be: { messages: [ { shortText, type: 'E', severity: 'E', ... } ] }
             if (activeRes && activeRes.messages) {
                 const errors = activeRes.messages.filter(m =>
                     m.type === 'E' || m.severity === 'E' || m.type === 'error' || m.severity === 'error'
@@ -315,7 +339,7 @@ ENDCLASS.`
                     const errorMsg = errors.map(e => `[ERROR] Line ${e.line || e.unitLine || '?'}: ${e.shortText}`).join('\n');
                     alert("Activation Failed with Errors:\n" + errorMsg);
                     setStatus({ type: 'error', msg: 'Activation Failed' });
-                    return; // Stop here
+                    return;
                 }
 
                 if (warnings.length > 0) {
