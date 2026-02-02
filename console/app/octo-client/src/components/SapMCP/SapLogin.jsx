@@ -80,7 +80,7 @@ ENDCLASS.`
                 </button>
             </form>
 
-            {isLoggedIn && (
+{/*             {isLoggedIn && (
                 <div style={{ marginTop: '20px', borderTop: '1px solid #ddd', paddingTop: '10px' }}>
                     <h3>Test MCP Operations</h3>
                     <div className="settings-grid">
@@ -93,7 +93,7 @@ ENDCLASS.`
                         <button type="button" className="btn-primary" style={{ width: '100%', background: '#10b981' }} onClick={handleSave}>Save to SAP System</button>
                     </div>
                 </div>
-            )}
+            )} */}
         </div>
     );
 };

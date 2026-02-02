@@ -42,7 +42,7 @@ cds.on('bootstrap', app => {
         // --- LOCAL / MOCK Mode ---
         console.log('[Server] No XSUAA service found. Enabling Local Mock Auth.');
 
-        app.use((req, res, next) => {
+/*         app.use((req, res, next) => {
             // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
             req.authInfo = {
                 getLogonName: () => 'localTest',
@@ -53,6 +53,20 @@ cds.on('bootstrap', app => {
             };
             req.user = {
                 id: 'localTest'
+            };
+            next();
+        }); */
+        app.use((req, res, next) => {
+            // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
+            req.authInfo = {
+                getLogonName: () => 'IYH1HC',
+                getEmail: () => 'hien.nguyendac@vn.bosch.com',
+                getGivenName: () => 'Hien',
+                getFamilyName: () => 'Nguyen Dac',
+                checkScope: () => true
+            };
+            req.user = {
+                id: 'IYH1HC'
             };
             next();
         });
