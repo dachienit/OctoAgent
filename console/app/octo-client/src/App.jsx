@@ -351,7 +351,9 @@ function App() {
 
     // Merge inputs with original data for full context if needed, but saveToSap takes specific inputs
     const payload = {
-      ...inputs, // packageName, trNumber, description, objectType, objectName
+      ...inputs, // objectType, objectName
+      package: inputs.packageName,
+      transport: inputs.trNumber,
       sourceCode: deployData.code
     };
 
