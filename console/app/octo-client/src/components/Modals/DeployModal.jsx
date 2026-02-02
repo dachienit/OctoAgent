@@ -51,6 +51,7 @@ const DeployModal = ({ isOpen, onClose, onDeploy, metadata, startLoading }) => {
                         <input
                             type="text"
                             value={inputs.objectType}
+                            onChange={e => handleChange('objectType', e.target.value)}
                             //readOnly
                             style={inputStyle}
                         />
