@@ -51,8 +51,8 @@ const DeployModal = ({ isOpen, onClose, onDeploy, metadata, startLoading }) => {
                         <input
                             type="text"
                             value={inputs.objectType}
-                            readOnly
-                            style={readOnlyStyle}
+                            //readOnly
+                            style={inputStyle}
                         />
                     </div>
                     <div style={{ marginBottom: '15px' }}>
