@@ -361,11 +361,12 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
     } else if (option === 'apply') {
         output = "Apply feature is coming soon.";
     } else {
-        output = userMessage;
+        /* output = userMessage;
         // Ensure any ABAP code blocks in the echo/response are wrapped in <abap> for buttons
         output = output.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
             return `<abap>${code}</abap>`;
-        });
+        }); */
+        output = await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
     }
 
     return {
