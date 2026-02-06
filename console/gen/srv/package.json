@@ -35,6 +35,7 @@
     "@cap-js/sqlite": "^2.1.2",
     "@sap-ai-sdk/foundation-models": "^1.13.0",
     "@sap/cds": "^9.6.4",
+    "@sap/cds-dk": "^9.6.1",
     "@sap/xsenv": "^6.0.0",
     "@sap/xssec": "^4.12.2",
     "abap-adt-api": "^6.2.1",
@@ -63,7 +64,6 @@
   },
   "keywords": [],
   "devDependencies": {
-    "@sap/cds-dk": "^9.6.1",
     "esbuild": "^0.27.0",
     "pkg": "^5.8.1"
   }

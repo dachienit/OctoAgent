@@ -1,0 +1,269 @@
+{
+  "namespace": "octo.agent",
+  "definitions": {
+    "octo.agent.UserEnv": {
+      "kind": "entity",
+      "elements": {
+        "userId": {
+          "key": true,
+          "type": "cds.String",
+          "length": 20
+        },
+        "brainId": {
+          "type": "cds.String",
+          "length": 50
+        },
+        "theme": {
+          "type": "cds.String",
+          "length": 20
+        },
+        "secret": {
+          "type": "cds.String",
+          "length": 50
+        },
+        "customPrompt": {
+          "type": "cds.LargeString"
+        },
+        "createdAt": {
+          "type": "cds.Timestamp"
+        },
+        "updatedAt": {
+          "type": "cds.Timestamp"
+        }
+      }
+    },
+    "ChatService": {
+      "@source": "srv/chat-service.cds",
+      "kind": "service",
+      "@impl": "./chat-service.cjs",
+      "@path": "/api"
+    },
+    "ChatService.EnvSettings": {
+      "kind": "type",
+      "elements": {
+        "brainId": {
+          "type": "cds.String"
+        },
+        "ntid": {
+          "type": "cds.String"
+        },
+        "customPrompt": {
+          "type": "cds.String"
+        },
+        "theme": {
+          "type": "cds.String"
+        },
+        "skill": {
+          "type": "cds.String"
+        }
+      }
+    },
+    "ChatService.ChatResponse": {
+      "kind": "type",
+      "elements": {
+        "reply": {
+          "type": "cds.LargeString"
+        },
+        "hisID": {
+          "type": "cds.String"
+        }
+      }
+    },
+    "ChatService.UserDetails": {
+      "kind": "type",
+      "elements": {
+        "username": {
+          "type": "cds.String"
+        },
+        "email": {
+          "type": "cds.String"
+        },
+        "firstName": {
+          "type": "cds.String"
+        },
+        "lastName": {
+          "type": "cds.String"
+        }
+      }
+    },
+    "ChatService.SkillContent": {
+      "kind": "type",
+      "elements": {
+        "content": {
+          "type": "cds.LargeString"
+        }
+      }
+    },
+    "ChatService.chat": {
+      "kind": "action",
+      "params": {
+        "message": {
+          "type": "cds.LargeString"
+        },
+        "env": {
+          "type": "ChatService.EnvSettings"
+        },
+        "option": {
+          "type": "cds.String"
+        },
+        "reLoad": {
+          "type": "cds.Boolean"
+        },
+        "objectType": {
+          "type": "cds.String"
+        },
+        "objectName": {
+          "type": "cds.String"
+        },
+        "error": {
+          "type": "cds.LargeString"
+        },
+        "historyID": {
+          "type": "cds.String"
+        }
+      },
+      "returns": {
+        "type": "ChatService.ChatResponse"
+      }
+    },
+    "ChatService.userinfo": {
+      "kind": "function",
+      "returns": {
+        "type": "ChatService.UserDetails"
+      }
+    },
+    "ChatService.skills": {
+      "kind": "function",
+      "returns": {
+        "items": {
+          "type": "cds.String"
+        }
+      }
+    },
+    "ChatService.getSkill": {
+      "kind": "function",
+      "params": {
+        "filename": {
+          "type": "cds.String"
+        }
+      },
+      "returns": {
+        "type": "ChatService.SkillContent"
+      }
+    },
+    "ChatService.saveSkill": {
+      "kind": "action",
+      "params": {
+        "filename": {
+          "type": "cds.String"
+        },
+        "content": {
+          "type": "cds.LargeString"
+        }
+      },
+      "returns": {
+        "type": "cds.Boolean"
+      }
+    },
+    "EnvService": {
+      "@source": "srv/setting-service.cds",
+      "kind": "service",
+      "@impl": "./setting-service.cjs",
+      "@path": "/settings"
+    },
+    "EnvService.UserEnv": {
+      "kind": "entity",
+      "projection": {
+        "from": {
+          "ref": [
+            "octo.agent.UserEnv"
+          ]
+        }
+      },
+      "elements": {
+        "userId": {
+          "key": true,
+          "type": "cds.String",
+          "length": 20
+        },
+        "brainId": {
+          "type": "cds.String",
+          "length": 50
+        },
+        "theme": {
+          "type": "cds.String",
+          "length": 20
+        },
+        "secret": {
+          "type": "cds.String",
+          "length": 50
+        },
+        "customPrompt": {
+          "type": "cds.LargeString"
+        },
+        "createdAt": {
+          "type": "cds.Timestamp"
+        },
+        "updatedAt": {
+          "type": "cds.Timestamp"
+        }
+      }
+    },
+    "cds.outbox.Messages": {
+      "kind": "entity",
+      "elements": {
+        "ID": {
+          "key": true,
+          "type": "cds.UUID"
+        },
+        "timestamp": {
+          "type": "cds.Timestamp"
+        },
+        "target": {
+          "type": "cds.String"
+        },
+        "msg": {
+          "type": "cds.LargeString"
+        },
+        "attempts": {
+          "type": "cds.Integer",
+          "default": {
+            "val": 0
+          }
+        },
+        "partition": {
+          "type": "cds.Integer",
+          "default": {
+            "val": 0
+          }
+        },
+        "lastError": {
+          "type": "cds.LargeString"
+        },
+        "lastAttemptTimestamp": {
+          "@cds.on.update": {
+            "=": "$now"
+          },
+          "type": "cds.Timestamp"
+        },
+        "status": {
+          "type": "cds.String",
+          "length": 23
+        },
+        "task": {
+          "type": "cds.String",
+          "length": 255
+        },
+        "appid": {
+          "type": "cds.String",
+          "length": 255
+        }
+      }
+    }
+  },
+  "meta": {
+    "creator": "CDS Compiler v6.6.2",
+    "flavor": "inferred"
+  },
+  "$version": "2.0"
+}

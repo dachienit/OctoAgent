@@ -17,12 +17,23 @@ modules:
     path: gen/srv
     parameters:
       buildpack: nodejs_buildpack
+      memory: 2048M
+      disk-quota: 2048M
     build-parameters:
       builder: npm-ci
     provides:
       - name: srv-api # required by consumers of CAP services
         properties:
           srv-url: ${default-url}
+    properties:
+      URL_TOKEN: "TBD"
+      CLIENT_ID: "TBD"
+      SCOPE: "TBD"
+      CLIENT_SECRET: "TBD"
+      GRANT_TYPE: "client_credentials"
+      DIA_HISTORY: "https://ews-emea.api.bosch.com/it/application/dia-brain/v1/api/chat-histories"
+      DIA_CHAT_RAG: "https://ews-emea.api.bosch.com/it/application/dia-brain/v1/api/chat/retrieval-augmented"
+      BRAIN_ID: "TBD"
     requires:
       - name: octo-console-auth
       - name: octo-console-dest

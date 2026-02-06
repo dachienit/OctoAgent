@@ -42,20 +42,20 @@ cds.on('bootstrap', app => {
         // --- LOCAL / MOCK Mode ---
         console.log('[Server] No XSUAA service found. Enabling Local Mock Auth.');
 
-/*         app.use((req, res, next) => {
-            // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
-            req.authInfo = {
-                getLogonName: () => 'localTest',
-                getEmail: () => 'localTest@bosch.com',
-                getGivenName: () => 'Local',
-                getFamilyName: () => 'Local Test',
-                checkScope: () => true
-            };
-            req.user = {
-                id: 'localTest'
-            };
-            next();
-        }); */
+        /*         app.use((req, res, next) => {
+                    // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
+                    req.authInfo = {
+                        getLogonName: () => 'localTest',
+                        getEmail: () => 'localTest@bosch.com',
+                        getGivenName: () => 'Local',
+                        getFamilyName: () => 'Local Test',
+                        checkScope: () => true
+                    };
+                    req.user = {
+                        id: 'localTest'
+                    };
+                    next();
+                }); */
         app.use((req, res, next) => {
             // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
             req.authInfo = {
@@ -72,17 +72,45 @@ cds.on('bootstrap', app => {
         });
     }
 
-/*     // --- Serve React Static Files (Monolithic Mode) ---
-    const reactBuildPath = path.join(__dirname, '../app/octo-client/dist');
-    app.use(express.static(reactBuildPath));
-
-    // React Router Fallback
-    app.get('*', (req, res, next) => {
-        if (req.path.startsWith('/api') || req.path.startsWith('/settings')) {
-            return next();
+    // --- /api/me Endpoint for User Info & CSRF Token ---
+    app.get('/api/me', (req, res) => {
+        // req.authInfo is available if authenticated (Passport or Mock)
+        if (req.authInfo) {
+            const userId = req.authInfo.getLogonName ? req.authInfo.getLogonName() : (req.user && req.user.id);
+            res.json({
+                userId: userId,
+                username: userId, // Compatibility alias
+                email: req.authInfo.getEmail ? req.authInfo.getEmail() : "",
+                firstName: req.authInfo.getGivenName ? req.authInfo.getGivenName() : "",
+                lastName: req.authInfo.getFamilyName ? req.authInfo.getFamilyName() : ""
+            });
+        } else {
+            res.status(401).json({ error: "Unauthorized" });
         }
-        res.sendFile(path.join(reactBuildPath, 'index.html'));
-    }); */
+    });
+
+    /*     // --- Serve React Static Files (Monolithic Mode) ---
+        const reactBuildPath = path.join(__dirname, '../app/octo-client/dist');
+        app.use(express.static(reactBuildPath));
+    
+        // React Router Fallback
+        app.get('*', (req, res, next) => {
+            if (req.path.startsWith('/api') || req.path.startsWith('/settings')) {
+                return next();
+            }
+            res.sendFile(path.join(reactBuildPath, 'index.html'));
+        }); */
+});
+
+// --- Auto-Deploy for In-Memory DB (Standard CAPM Fix) ---
+cds.on('served', async (services) => {
+    const db = await cds.connect.to('db');
+    if (db.options.kind === 'sqlite' && db.options.credentials.database === ':memory:') {
+        console.log('[Server] In-memory SQLite detected. Auto-deploying model to DB...');
+        const model = await cds.load('srv'); // Load all definitions
+        await cds.deploy(model).to(db);
+        console.log('[Server] Auto-deployment complete.');
+    }
 });
 
 export default cds.server;

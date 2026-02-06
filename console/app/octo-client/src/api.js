@@ -1,12 +1,35 @@
+let csrfToken = null;
+
+async function fetchCsrfToken() {
+    if (csrfToken) return csrfToken;
+    try {
+        console.log('🔐 Fetching CSRF token...');
+        const response = await fetch('/api/me', {
+            method: 'GET',
+            headers: { 'X-CSRF-Token': 'Fetch' }
+        });
+        const token = response.headers.get('X-CSRF-Token');
+        if (token) {
+            csrfToken = token;
+            console.log('✅ CSRF token fetched successfully');
+        }
+        return token;
+    } catch (error) {
+        console.error('❌ Error fetching CSRF token:', error);
+        return null;
+    }
+}
+
 export const api = {
     chat: async (message, env, option = null, reLoad = false, metadata = {}) => {
         try {
-            // In CAP, actions are POSTed.
-            // ChatService.chat is an action.
-            // URL: /api/chat
+            const token = await fetchCsrfToken();
+            const headers = { 'Content-Type': 'application/json' };
+            if (token) headers['X-CSRF-Token'] = token;
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers,
                 body: JSON.stringify({
                     message,
                     env,
@@ -28,16 +51,14 @@ export const api = {
     },
 
     getUserInfo: async () => {
-        const res = await fetch('/api/userinfo()');
+        // Use the new /api/me endpoint which is more robust and returns formatted info
+        const res = await fetch('/api/me');
         if (!res.ok) throw new Error("Unauthorized");
         return await res.json();
     },
 
     getSkills: async () => {
-        const res = await fetch('/api/skills()'); // Function import in OData v4 often uses parens, or standard GET if mapped
-        // CAP by default maps functions to GET /api/skills
-        // Checking how we defined it... function skills() returns array of String
-        // OData: /api/skills()
+        const res = await fetch('/api/skills()');
         if (!res.ok) return [];
         const data = await res.json();
         return data.value || data;
@@ -47,13 +68,17 @@ export const api = {
         const res = await fetch(`/api/getSkill(filename='${encodeURIComponent(filename)}')`);
         if (!res.ok) throw new Error("Failed to load skill");
         const data = await res.json();
-        return data; // { content: "..." }
+        return data;
     },
 
     saveSkill: async (filename, content) => {
+        const token = await fetchCsrfToken();
+        const headers = { 'Content-Type': 'application/json' };
+        if (token) headers['X-CSRF-Token'] = token;
+
         const res = await fetch('/api/saveSkill', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
+            headers,
             body: JSON.stringify({ filename, content })
         });
         if (!res.ok) throw new Error("Failed to save skill");
