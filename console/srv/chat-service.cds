@@ -13,7 +13,7 @@ service ChatService @(impl: './chat-service.cjs', path: '/api') {
     hisID : String;
   }
 
-  type UserInfo {
+  type UserDetails {
     username : String;
     email : String;
     firstName : String;
@@ -35,7 +35,7 @@ service ChatService @(impl: './chat-service.cjs', path: '/api') {
     historyID : String
   ) returns ChatResponse;
 
-  function userinfo() returns UserInfo;
+  function userinfo() returns UserDetails;
 
   function skills() returns array of String;
   
