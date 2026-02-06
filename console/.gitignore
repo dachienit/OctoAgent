@@ -11,6 +11,7 @@ node_modules
 dist
 dist-ssr
 *.local
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -21,9 +22,24 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment and credentials
 .env
 .npmrc
 73aihkt.json
 btp-sample-auth/
 approuter/resources/
 MCP_ABAP/
+
+# SAP CAP build artifacts
+gen/
+build/
+*.mtar
+mta_archives/
+resources/
+default-env.json
+.cdsrc-private.json
+
+# Dist folders for frontend builds
+app/*/dist/
+approuter/dist/

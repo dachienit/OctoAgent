@@ -1,4 +1,8 @@
-service ChatService @(impl: './chat-service.cjs', path: '/api') {
+service ChatService @(
+  impl: './chat-service.cjs', 
+  path: '/api',
+  requires: 'authenticated-user'
+) {
 
   type EnvSettings {
     brainId : String;

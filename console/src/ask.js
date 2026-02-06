@@ -328,19 +328,19 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
     let output = "";
 
     const token = await getTokenCached();
-
-    /*     if (process.env.PROX) {
-            // Corporate proxy uses CA not in undici's certificate store
-            //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
-            const dispatcher = new ProxyAgent({
-                uri: new URL(process.env.PROX).toString(),
-                token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
-            });
-            setGlobalDispatcher(dispatcher);
-        } */
-
     if (!historyID) {
         historyID = await createHistory(env.brainId, token);
+    }
+
+    // Only use proxy in local development, not on BTP
+    if (process.env.PROX && !process.env.VCAP_SERVICES) {
+        // Corporate proxy uses CA not in undici's certificate store
+        //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
+        const dispatcher = new ProxyAgent({
+            uri: new URL(process.env.PROX).toString(),
+            token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
+        });
+        setGlobalDispatcher(dispatcher);
     }
 
     //const token = '';
@@ -361,12 +361,15 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
     } else if (option === 'apply') {
         output = "Apply feature is coming soon.";
     } else {
-        /* output = userMessage;
-        // Ensure any ABAP code blocks in the echo/response are wrapped in <abap> for buttons
-        output = output.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
-            return `<abap>${code}</abap>`;
-        }); */
-        output = await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
+        if (process.env.PROX && !process.env.VCAP_SERVICES) {
+            output = userMessage;
+            // Ensure any ABAP code blocks in the echo/response are wrapped in <abap> for buttons
+            output = output.replace(/```abap([\s\S]*?)```/g, (_match, code) => {
+                return `<abap>${code}</abap>`;
+            });
+        } else {
+            output = await chat(userMessage, env.customPrompt || "", env.brainId, token, historyID);
+        }
     }
 
     return {

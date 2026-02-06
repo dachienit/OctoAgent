@@ -27,31 +27,21 @@
     }
   },
   "engines": {
-    "node": ">=18.x"
+    "node": ">=20.x",
+    "npm": ">=10.x"
   },
   "author": "Hien, Culen, Vinh, Billy, Nhan, Nhi, Hau",
   "license": "UNLICENSED",
   "dependencies": {
     "@cap-js/sqlite": "^2.1.2",
-    "@sap-ai-sdk/foundation-models": "^1.13.0",
     "@sap/cds": "^9.6.4",
     "@sap/xsenv": "^6.0.0",
     "@sap/xssec": "^4.12.2",
-    "abap-adt-api": "^6.2.1",
-    "chalk": "^5.6.2",
-    "commander": "^12.1.0",
     "cors": "^2.8.5",
     "dotenv": "^16.6.1",
     "express": "^4.21.2",
-    "figlet": "^1.7.0",
     "https-proxy-agent": "^7.0.5",
-    "inquirer": "^10.1.8",
-    "marked": "^15.0.12",
-    "marked-terminal": "^7.3.0",
-    "openai": "^5.12.2",
-    "ora": "^8.0.1",
     "passport": "^0.7.0",
-    "strip-ansi": "^7.1.0",
     "undici": "^6.19.8"
   },
   "directories": {
@@ -63,8 +53,19 @@
   },
   "keywords": [],
   "devDependencies": {
+    "@sap-ai-sdk/foundation-models": "^1.13.0",
     "@sap/cds-dk": "^9.6.1",
+    "abap-adt-api": "^6.2.1",
+    "chalk": "^5.6.2",
+    "commander": "^12.1.0",
     "esbuild": "^0.27.0",
-    "pkg": "^5.8.1"
+    "figlet": "^1.7.0",
+    "inquirer": "^10.1.8",
+    "marked": "^15.0.12",
+    "marked-terminal": "^7.3.0",
+    "openai": "^5.12.2",
+    "ora": "^8.0.1",
+    "pkg": "^5.8.1",
+    "strip-ansi": "^7.1.0"
   }
 }

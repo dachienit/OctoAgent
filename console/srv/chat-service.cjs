@@ -1,4 +1,3 @@
-console.log("!!! LOADING srv/chat-service.cjs !!!");
 const fs = require('fs');
 const path = require('path');
 const { fileURLToPath } = require('url');

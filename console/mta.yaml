@@ -8,8 +8,8 @@ build-parameters:
   before-all:
     - builder: custom
       commands:
-        - npm ci
-        - npx -p @sap/cds-dk cds build --production
+        - npm ci --only=production --no-audit --no-fund
+        - npx cds build --production
 
 modules:
   - name: octo-console-srv
@@ -64,6 +64,30 @@ modules:
       supported-platforms: []
       build-result: dist
       destination: octoclient-content.zip
+
+  - name: octo-console-approuter
+    type: nodejs
+    path: approuter
+    parameters:
+      buildpack: nodejs_buildpack
+      memory: 256M
+      disk-quota: 512M
+    build-parameters:
+      builder: npm-ci
+    requires:
+      - name: octo-console-auth
+      - name: octo-console-repo-host
+      - name: octo-console-dest
+      - name: srv-api
+        group: destinations
+        properties:
+          name: octo-backend
+          url: ~{srv-url}
+          forwardAuthToken: true
+    provides:
+      - name: approuter-api
+        properties:
+          app-url: ${default-url}
 
 resources:
   - name: octo-console-auth

@@ -38,35 +38,33 @@ cds.on('bootstrap', app => {
         app.use('/api', passport.authenticate('JWT', { session: false }));
         app.use('/settings', passport.authenticate('JWT', { session: false }));
 
+        // Normalize req.user for CAP framework
+        app.use((req, res, next) => {
+            if (req.authInfo) {
+                // Ensure req.user has 'id' field for CAP's $user.id
+                req.user = {
+                    id: req.authInfo.getLogonName(),
+                    locale: req.authInfo.getLocale ? req.authInfo.getLocale() : 'en'
+                };
+            }
+            next();
+        });
+
     } else {
         // --- LOCAL / MOCK Mode ---
         console.log('[Server] No XSUAA service found. Enabling Local Mock Auth.');
 
-        /*         app.use((req, res, next) => {
-                    // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
-                    req.authInfo = {
-                        getLogonName: () => 'localTest',
-                        getEmail: () => 'localTest@bosch.com',
-                        getGivenName: () => 'Local',
-                        getFamilyName: () => 'Local Test',
-                        checkScope: () => true
-                    };
-                    req.user = {
-                        id: 'localTest'
-                    };
-                    next();
-                }); */
         app.use((req, res, next) => {
-            // console.log("[Server] Mock Auth Middleware Hit! URL:", req.url);
+            // Mock authentication for local development
             req.authInfo = {
-                getLogonName: () => 'IYH1HC',
-                getEmail: () => 'hien.nguyendac@vn.bosch.com',
-                getGivenName: () => 'Hien',
-                getFamilyName: () => 'Nguyen Dac',
+                getLogonName: () => 'localUser',
+                getEmail: () => 'local.user@example.com',
+                getGivenName: () => 'Local',
+                getFamilyName: () => 'User',
                 checkScope: () => true
             };
             req.user = {
-                id: 'IYH1HC'
+                id: 'localUser'
             };
             next();
         });
@@ -88,18 +86,6 @@ cds.on('bootstrap', app => {
             res.status(401).json({ error: "Unauthorized" });
         }
     });
-
-    /*     // --- Serve React Static Files (Monolithic Mode) ---
-        const reactBuildPath = path.join(__dirname, '../app/octo-client/dist');
-        app.use(express.static(reactBuildPath));
-    
-        // React Router Fallback
-        app.get('*', (req, res, next) => {
-            if (req.path.startsWith('/api') || req.path.startsWith('/settings')) {
-                return next();
-            }
-            res.sendFile(path.join(reactBuildPath, 'index.html'));
-        }); */
 });
 
 // --- Auto-Deploy for In-Memory DB (Standard CAPM Fix) ---
