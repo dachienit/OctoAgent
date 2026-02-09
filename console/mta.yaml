@@ -61,7 +61,7 @@ modules:
       commands:
         - npm install
         - npm run build
-        - npx copyfiles -f manifest.json dist
+        - npx copyfiles -f manifest.json xs-app.json dist
       supported-platforms:
         []
       build-result: dist
