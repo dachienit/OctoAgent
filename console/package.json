@@ -3,10 +3,6 @@
   "version": "0.0.1",
   "type": "module",
   "description": "Engineering Advocate",
-  "main": "src/index.js",
-  "bin": {
-    "abap": "bin/index.js"
-  },
   "scripts": {
     "start": "node ./srv/server.js",
     "watch": "cds watch",
@@ -58,6 +54,7 @@
     "abap-adt-api": "^6.2.1",
     "chalk": "^5.6.2",
     "commander": "^12.1.0",
+    "copyfiles": "^2.4.1",
     "esbuild": "^0.27.0",
     "figlet": "^1.7.0",
     "inquirer": "^10.1.8",
