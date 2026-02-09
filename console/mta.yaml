@@ -10,7 +10,7 @@ build-parameters:
       commands:
         - npm ci --only=production --no-audit --no-fund
         - npx -p @sap/cds-dk cds build --production
-        - '(Get-Content gen/srv/package.json) -replace ''"start": "cds serve"'', ''"start": "node ./srv/server.js"'' | Set-Content gen/srv/package.json'
+        - node -e "const fs=require('fs'); const p='gen/srv/package.json'; const pkg=JSON.parse(fs.readFileSync(p,'utf8')); pkg.scripts.start='node ./srv/server.js'; fs.writeFileSync(p,JSON.stringify(pkg,null,2));"
 
 modules:
   - name: octo-agent-srv
