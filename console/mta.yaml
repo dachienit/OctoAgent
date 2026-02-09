@@ -11,7 +11,6 @@ build-parameters:
         - npm ci --only=production --no-audit --no-fund
         - npx -p @sap/cds-dk cds build --production
         - node -e "const fs=require('fs'); const p='gen/srv/package.json'; const pkg=JSON.parse(fs.readFileSync(p,'utf8')); pkg.scripts.start='node ./srv/server.js'; fs.writeFileSync(p,JSON.stringify(pkg,null,2));"
-        - npx copyfiles -u 1 "src/**/*" gen/srv
 
 modules:
   - name: octo-agent-srv
@@ -23,6 +22,8 @@ modules:
       disk-quota: 2048M
     build-parameters:
       builder: npm-ci
+      commands:
+        - npx copyfiles -u 1 "../../src/**/*" .
     provides:
       - name: srv-api
         properties:
