@@ -21,8 +21,9 @@ modules:
       memory: 2048M
       disk-quota: 2048M
     build-parameters:
-      builder: npm-ci
+      builder: custom
       commands:
+        - npm ci --production --no-audit
         - npx copyfiles -u 1 "../../src/**/*" .
     provides:
       - name: srv-api
