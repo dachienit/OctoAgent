@@ -1,5 +1,5 @@
 _schema-version: '3.1'
-ID: octo-console
+ID: octo-agent
 version: 1.0.0
 description: "Octo Agent BTP Application"
 parameters:
@@ -12,7 +12,7 @@ build-parameters:
         - npx -p @sap/cds-dk cds build --production
 
 modules:
-  - name: octo-console-srv
+  - name: octo-agent-srv
     type: nodejs
     path: gen/srv
     parameters:
@@ -35,14 +35,14 @@ modules:
       DIA_CHAT_RAG: "https://ews-emea.api.bosch.com/it/application/dia-brain/v1/api/chat/retrieval-augmented"
       BRAIN_ID: "TBD"
     requires:
-      - name: octo-console-auth
-      - name: octo-console-dest
+      - name: octo-agent-auth
+      - name: octo-agent-dest
 
-  - name: octo-console-ui-deployer
+  - name: octo-agent-ui-deployer
     type: com.sap.application.content
     path: .
     requires:
-      - name: octo-console-repo-host
+      - name: octo-agent-repo-host
         parameters:
           content-target: true
     build-parameters:
@@ -61,12 +61,14 @@ modules:
       commands:
         - npm install
         - npm run build
+      after-commands:
+        - echo '{"sap.app":{"id":"octoconsoleui","applicationVersion":{"version":"1.0.0"}},"sap.cloud":{"public":true,"service":"octo-agent"}}' > dist/manifest.json
       supported-platforms:
         []
       build-result: dist
       destination: octoclient-content.zip
 
-  - name: octo-console-approuter
+  - name: octo-agent
     type: nodejs
     path: approuter
     parameters:
@@ -76,9 +78,9 @@ modules:
     build-parameters:
       builder: npm-ci
     requires:
-      - name: octo-console-auth
-      - name: octo-console-repo-host
-      - name: octo-console-dest
+      - name: octo-agent-auth
+      - name: octo-agent-repo-host
+      - name: octo-agent-dest
       - name: srv-api
         group: destinations
         properties:
@@ -91,23 +93,20 @@ modules:
           app-url: ${default-url}
 
 resources:
-  - name: octo-console-auth
+  - name: octo-agent-auth
     type: org.cloudfoundry.managed-service
     parameters:
       service: xsuaa
       service-plan: application
       path: ./xs-security.json
-      config:
-        xsappname: octo-agent-${org}-${space}
-        tenant-mode: dedicated
 
-  - name: octo-console-repo-host
+  - name: octo-agent-repo-host
     type: org.cloudfoundry.managed-service
     parameters:
       service: html5-apps-repo
       service-plan: app-host
 
-  - name: octo-console-dest
+  - name: octo-agent-dest
     type: org.cloudfoundry.managed-service
     parameters:
       service: destination
@@ -116,7 +115,7 @@ resources:
         init_data:
           instance:
             existing_destinations:
-              - Name: octo-console-srv-api
+              - Name: octo-agent-srv-api
                 URL: ~{srv-api/srv-url}
                 Authentication: NoAuthentication
                 Type: HTTP
