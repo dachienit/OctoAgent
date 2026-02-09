@@ -8,7 +8,7 @@
     "abap": "bin/index.js"
   },
   "scripts": {
-    "start": "cds serve",
+    "start": "node ./srv/server.js",
     "watch": "cds watch",
     "build": "npm run build:client",
     "dev:client": "npm run dev --prefix app/octo-client",
