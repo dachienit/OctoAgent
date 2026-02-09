@@ -99,4 +99,11 @@ cds.on('served', async (services) => {
     }
 });
 
-export default cds.server;
+// Start the server (for production deployment)
+cds.serve('all').then(async () => {
+    const port = process.env.PORT || 8080;
+    console.log(`[Server] CDS server started on port ${port}`);
+}).catch(err => {
+    console.error('[Server] Failed to start:', err);
+    process.exit(1);
+});
