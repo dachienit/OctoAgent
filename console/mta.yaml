@@ -61,7 +61,8 @@ modules:
       commands:
         - npm install
         - npm run build
-      supported-platforms: []
+      supported-platforms:
+        []
       build-result: dist
       destination: octoclient-content.zip
 

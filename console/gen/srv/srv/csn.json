@@ -7,27 +7,39 @@
         "userId": {
           "key": true,
           "type": "cds.String",
-          "length": 20
+          "length": 50
         },
         "brainId": {
           "type": "cds.String",
-          "length": 50
+          "length": 100
         },
         "theme": {
           "type": "cds.String",
-          "length": 20
+          "length": 20,
+          "default": {
+            "val": "colorful"
+          }
         },
         "secret": {
           "type": "cds.String",
-          "length": 50
+          "length": 100
         },
         "customPrompt": {
           "type": "cds.LargeString"
         },
         "createdAt": {
+          "@cds.on.insert": {
+            "=": "$now"
+          },
           "type": "cds.Timestamp"
         },
         "updatedAt": {
+          "@cds.on.insert": {
+            "=": "$now"
+          },
+          "@cds.on.update": {
+            "=": "$now"
+          },
           "type": "cds.Timestamp"
         }
       }
@@ -36,7 +48,8 @@
       "@source": "srv/chat-service.cds",
       "kind": "service",
       "@impl": "./chat-service.cjs",
-      "@path": "/api"
+      "@path": "/api",
+      "@requires": "authenticated-user"
     },
     "ChatService.EnvSettings": {
       "kind": "type",
@@ -169,7 +182,8 @@
       "@source": "srv/setting-service.cds",
       "kind": "service",
       "@impl": "./setting-service.cjs",
-      "@path": "/settings"
+      "@path": "/settings",
+      "@requires": "authenticated-user"
     },
     "EnvService.UserEnv": {
       "kind": "entity",
@@ -178,33 +192,59 @@
           "ref": [
             "octo.agent.UserEnv"
           ]
-        }
+        },
+        "where": [
+          {
+            "ref": [
+              "userId"
+            ]
+          },
+          "=",
+          {
+            "ref": [
+              "$user",
+              "id"
+            ]
+          }
+        ]
       },
       "elements": {
         "userId": {
           "key": true,
           "type": "cds.String",
-          "length": 20
+          "length": 50
         },
         "brainId": {
           "type": "cds.String",
-          "length": 50
+          "length": 100
         },
         "theme": {
           "type": "cds.String",
-          "length": 20
+          "length": 20,
+          "default": {
+            "val": "colorful"
+          }
         },
         "secret": {
           "type": "cds.String",
-          "length": 50
+          "length": 100
         },
         "customPrompt": {
           "type": "cds.LargeString"
         },
         "createdAt": {
+          "@cds.on.insert": {
+            "=": "$now"
+          },
           "type": "cds.Timestamp"
         },
         "updatedAt": {
+          "@cds.on.insert": {
+            "=": "$now"
+          },
+          "@cds.on.update": {
+            "=": "$now"
+          },
           "type": "cds.Timestamp"
         }
       }

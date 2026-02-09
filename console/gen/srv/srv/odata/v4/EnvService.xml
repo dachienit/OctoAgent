@@ -23,14 +23,20 @@
         <Key>
           <PropertyRef Name="userId"/>
         </Key>
-        <Property Name="userId" Type="Edm.String" MaxLength="20" Nullable="false"/>
-        <Property Name="brainId" Type="Edm.String" MaxLength="50"/>
-        <Property Name="theme" Type="Edm.String" MaxLength="20"/>
-        <Property Name="secret" Type="Edm.String" MaxLength="50"/>
+        <Property Name="userId" Type="Edm.String" MaxLength="50" Nullable="false"/>
+        <Property Name="brainId" Type="Edm.String" MaxLength="100"/>
+        <Property Name="theme" Type="Edm.String" MaxLength="20" DefaultValue="colorful"/>
+        <Property Name="secret" Type="Edm.String" MaxLength="100"/>
         <Property Name="customPrompt" Type="Edm.String"/>
         <Property Name="createdAt" Type="Edm.DateTimeOffset" Precision="7"/>
         <Property Name="updatedAt" Type="Edm.DateTimeOffset" Precision="7"/>
       </EntityType>
+      <Annotations Target="EnvService.UserEnv/createdAt">
+        <Annotation Term="Core.Computed" Bool="true"/>
+      </Annotations>
+      <Annotations Target="EnvService.UserEnv/updatedAt">
+        <Annotation Term="Core.Computed" Bool="true"/>
+      </Annotations>
     </Schema>
   </edmx:DataServices>
 </edmx:Edmx>
