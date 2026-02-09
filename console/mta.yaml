@@ -61,8 +61,7 @@ modules:
       commands:
         - npm install
         - npm run build
-      after-commands:
-        - echo '{"sap.app":{"id":"octoconsoleui","applicationVersion":{"version":"1.0.0"}},"sap.cloud":{"public":true,"service":"octo-agent"}}' > dist/manifest.json
+        - npx copyfiles -f manifest.json dist
       supported-platforms:
         []
       build-result: dist
