@@ -22,7 +22,7 @@ modules:
     build-parameters:
       builder: npm-ci
     provides:
-      - name: srv-api # required by consumers of CAP services
+      - name: srv-api
         properties:
           srv-url: ${default-url}
     properties:
@@ -38,47 +38,27 @@ modules:
       - name: octo-agent-auth
       - name: octo-agent-dest
 
-  - name: octo-agent-ui-deployer
-    type: com.sap.application.content
-    path: .
-    requires:
-      - name: octo-agent-repo-host
-        parameters:
-          content-target: true
-    build-parameters:
-      build-result: resources
-      requires:
-        - artifacts:
-            - octoclient-content.zip
-          name: octoclient
-          target-path: resources/
-
-  - name: octoclient
-    type: html5
-    path: app/octo-client
-    build-parameters:
-      builder: custom
-      commands:
-        - npm install
-        - npm run build
-        - npx copyfiles -f manifest.json xs-app.json dist
-      supported-platforms:
-        []
-      build-result: dist
-      destination: octoclient-content.zip
-
   - name: octo-agent
     type: nodejs
     path: approuter
     parameters:
       buildpack: nodejs_buildpack
-      memory: 256M
-      disk-quota: 512M
+      memory: 512M
+      disk-quota: 1024M
     build-parameters:
-      builder: npm-ci
+      builder: custom
+      commands:
+        # Build UI
+        - npm --prefix ../app/octo-client install
+        - npm --prefix ../app/octo-client run build
+        # Copy UI to approuter resources
+        - npx copyfiles -u 4 "../app/octo-client/dist/**/*" resources
+        # Install approuter dependencies
+        - npm ci --production
+      ignore:
+        - node_modules/
     requires:
       - name: octo-agent-auth
-      - name: octo-agent-repo-host
       - name: octo-agent-dest
       - name: srv-api
         group: destinations
@@ -98,12 +78,6 @@ resources:
       service: xsuaa
       service-plan: application
       path: ./xs-security.json
-
-  - name: octo-agent-repo-host
-    type: org.cloudfoundry.managed-service
-    parameters:
-      service: html5-apps-repo
-      service-plan: app-host
 
   - name: octo-agent-dest
     type: org.cloudfoundry.managed-service
