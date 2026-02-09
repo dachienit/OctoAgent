@@ -10,6 +10,7 @@ build-parameters:
       commands:
         - npm ci --only=production --no-audit --no-fund
         - npx -p @sap/cds-dk cds build --production
+        - '(Get-Content gen/srv/package.json) -replace ''"start": "cds serve"'', ''"start": "node ./srv/server.js"'' | Set-Content gen/srv/package.json'
 
 modules:
   - name: octo-agent-srv
