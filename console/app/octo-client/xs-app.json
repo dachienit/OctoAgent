@@ -4,14 +4,14 @@
         {
             "source": "^/api/(.*)$",
             "target": "/api/$1",
-            "destination": "octo-console-srv-api",
+            "destination": "octo-agent-srv-api",
             "authenticationType": "xsuaa",
             "csrfProtection": false
         },
         {
             "source": "^/settings/(.*)$",
             "target": "/settings/$1",
-            "destination": "octo-console-srv-api",
+            "destination": "octo-agent-srv-api",
             "authenticationType": "xsuaa",
             "csrfProtection": false
         },
