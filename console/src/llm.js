@@ -3,10 +3,8 @@ import { fileURLToPath } from 'url';
 // import { dirname } from 'path';
 import path from 'node:path';
 import { readFile } from 'fs/promises';
-import { createUnitText } from "./createUnitTestClass.js";
 import { createClassMain } from "./createClass.js";
 import { MCPClient } from "./MCPClient.js";
-import { findMCPrepo } from "./findMCP.js";
 
 const __filename = import.meta.url ? fileURLToPath(import.meta.url) : (typeof __filename !== 'undefined' ? __filename : process.cwd());
 const __dirname = path.dirname(__filename);
@@ -290,8 +288,7 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
     try {
 
         //Initialize MCP
-        const repoDir = await findMCPrepo();
-        const mcpClient = new MCPClient({ repoDir: repoDir });
+        const mcpClient = new MCPClient({ repoDir: process.cwd() });
         mcpClient.start();
         await mcpClient.initialize();
         const login = await mcpClient.callTool("login", {});
@@ -346,15 +343,10 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
             // Search any error
             issueLog.result = issueLog.result.filter(item => item.severity === "E");
             if (issueLog.result.length === 0) { // No any error after active code
-                // Push unit test to system
-                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
-                    await createUnitText(
-                        mcpClient,
-                        objectName,
-                        unitTestBlock.code_snippet,
-                        transportNumber
-                    );
-                }
+                // Push unit test to system (feature disabled - createUnitText removed)
+                // if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
+                //     await createUnitText(...)
+                // }
                 return {
                     result: {
                         finalS4Code: s4Code,
@@ -374,15 +366,10 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                         console.log(`Starting Code Review Iteration ${reviewIteration + 1}...`);
                         let s4CodeReview = await reviewAndCorrectCode(issueLogString, r3SourceCode, historyID, token);
                         if (!s4CodeReview) {
-                            // Push unit test to system
-                            if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
-                                await createUnitText(
-                                    mcpClient,
-                                    objectName,
-                                    unitTestBlock.code_snippet,
-                                    transportNumber
-                                );
-                            }
+                            // Push unit test to system (feature disabled)
+                            // if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
+                            //     await createUnitText(...)
+                            // }
                             return {
                                 result: {
                                     finalS4Code: s4Code,
@@ -419,15 +406,10 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
                                     finalReviewReport += "] }";
                                 } else finalReviewReport = "";
 
-                                // Push unit test to system
-                                if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
-                                    await createUnitText(
-                                        mcpClient,
-                                        objectName,
-                                        unitTestBlock.code_snippet,
-                                        transportNumber
-                                    );
-                                }
+                                // Push unit test to system (feature disabled)
+                                // if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
+                                //     await createUnitText(...)
+                                // }
                                 return {
                                     result: {
                                         finalS4Code: s4Code,
@@ -453,15 +435,10 @@ export async function llmService(r3SourceCode, additionalRequirement = "Z_", his
             finalReviewReport += "] }";
         } else finalReviewReport = "";
 
-        // Push unit test code to S4 system
-        if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
-            await createUnitText(
-                mcpClient,
-                objectName,
-                unitTestBlock.code_snippet,
-                transportNumber
-            );
-        }
+        // Push unit test code to S4 system (feature disabled)
+        // if (unitTestBlock.object_type === "UNIT_TEST" && objectName && unitTestBlock.code_snippet) {
+        //     await createUnitText(...)
+        // }
 
         return {
             result: {
