@@ -24,21 +24,21 @@ modules:
       builder: custom
       commands:
         - npm ci --production --no-audit
-        - npx copyfiles -u 3 "../../src/**/*" .
-        - npx copyfiles -u 3 "../../docs/**/*" .
+        #- npx copyfiles -u 3 "../../src/**/*" .
+        #- npx copyfiles -u 3 "../../docs/**/*" .
     provides:
       - name: srv-api
         properties:
           srv-url: ${default-url}
     properties:
-      URL_TOKEN: "TBD"
-      CLIENT_ID: "TBD"
-      SCOPE: "TBD"
-      CLIENT_SECRET: "TBD"
-      GRANT_TYPE: "TBD"
+      URL_TOKEN: "https://login.microsoftonline.com/0ae51e19-07c8-4e4b-bb6d-648ee58410f4/oauth2/v2.0/token"
+      CLIENT_ID: "d02d08ba-44d3-400c-bb42-da0f63c44bab"
+      SCOPE: "api://dia-brain/.default"
+      CLIENT_SECRET: ""
+      GRANT_TYPE: "client_credentials"
       DIA_HISTORY: "https://ews-emea.api.bosch.com/it/application/dia-brain/v1/api/chat-histories"
       DIA_CHAT_RAG: "https://ews-emea.api.bosch.com/it/application/dia-brain/v1/api/chat/retrieval-augmented"
-      BRAIN_ID: "TBD"
+      BRAIN_ID: "e39Lh3w2teng"
     requires:
       - name: octo-agent-auth
       - name: octo-agent-dest
