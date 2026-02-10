@@ -9,15 +9,14 @@ build-parameters:
     - builder: custom
       commands:
         - npm ci --only=production --no-audit --no-fund
-        - npx -p @sap/cds-dk cds build --production
-        #- node -e "const fs=require('fs'); const p='gen/srv/package.json'; const pkg=JSON.parse(fs.readFileSync(p,'utf8')); pkg.scripts.start='node ./srv/server.js'; fs.writeFileSync(p,JSON.stringify(pkg,null,2));"
-        - node -e "const fs=require('fs'); const p='gen/srv/package.json'; const pkg=JSON.parse(fs.readFileSync(p,'utf8')); pkg.scripts.start='npx cds-serve'; fs.writeFileSync(p,JSON.stringify(pkg,null,2));"
+        - npx -p @sap/cds-dk cds build --for hana --production
 
 modules:
   - name: octo-agent-srv
     type: nodejs
-    path: gen/srv
+    path: srv
     parameters:
+      command: npx cds-serve
       health-check-type: http
       health-check-http-endpoint: /health
       buildpack: nodejs_buildpack
@@ -27,8 +26,6 @@ modules:
       builder: custom
       commands:
         - npm ci --production --no-audit
-        #- npx copyfiles -u 3 "../../src/**/*" .
-        #- npx copyfiles -u 3 "../../docs/**/*" .
     provides:
       - name: srv-api
         properties:
@@ -45,6 +42,15 @@ modules:
     requires:
       - name: octo-agent-auth
       - name: octo-agent-dest
+      - name: octo-agent-db
+
+  - name: octo-agent-db-deployer
+    type: hdb
+    path: db
+    parameters:
+      buildpack: nodejs_buildpack
+    requires:
+      - name: octo-agent-db
 
   - name: octo-agent
     type: nodejs
@@ -104,5 +110,12 @@ resources:
                 ProxyType: Internet
                 HTML5.DynamicDestination: true
                 HTML5.ForwardAuthToken: true
+  
+  - name: octo-agent-db
+    type: com.sap.xs.hdi-container
+    parameters:
+      service: hana
+      service-plan: hdi-shared
+
     requires:
       - name: srv-api

@@ -11,17 +11,16 @@
     "build:client": "npm run build --prefix app/octo-client",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
+  
   "cds": {
     "server": "srv/server.js",
-    "requires": {
+     "requires": {
       "db": {
-        "kind": "sqlite",
-        "credentials": {
-          "database": ":memory:"
-        }
+      "kind": "hana"
       }
     }
   },
+
   "engines": {
     "node": ">=20.x",
     "npm": ">=10.x"
