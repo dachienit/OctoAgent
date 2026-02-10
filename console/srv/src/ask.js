@@ -1,20 +1,11 @@
-import chalk from "chalk";
-import inquirer from "inquirer";
-import ora from "ora";
-import { llmService } from "./llm.js"; // Your LLM service
-import { Marked, marked } from 'marked';
-import { markedTerminal } from 'marked-terminal';
 import path from 'node:path';
 import fs from 'node:fs/promises'; // Use promises-based fs for async operations
-import stripAnsi from 'strip-ansi'; // Make sure this import is correct
-import axios from 'axios';
 import { promises } from "node:dns";
 import { fileURLToPath } from 'url';
 import { readFile } from 'fs/promises';
 // import { dirname } from 'path'; // Removed invalid import
-import { setGlobalDispatcher, ProxyAgent } from "undici";
+//import { setGlobalDispatcher, ProxyAgent } from "undici";
 
-marked.use(markedTerminal());
 /**
  * Basic HTML template for the combined report.
  * @param {string} title - The title for the HTML page.
@@ -332,7 +323,7 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
         historyID = await createHistory(env.brainId, token);
     }
 
-    // Only use proxy in local development, not on BTP
+/*     // Only use proxy in local development, not on BTP
     if (process.env.PROX && !process.env.VCAP_SERVICES) {
         // Corporate proxy uses CA not in undici's certificate store
         //process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -341,7 +332,7 @@ export async function ask(option, userMessage, env, objectType = "", objectName 
             token: `Basic ${Buffer.from(`${process.env.AGENT_USER}:${process.env.AGENT_PWD}`).toString('base64')}`
         });
         setGlobalDispatcher(dispatcher);
-    }
+    } */
 
     //const token = '';
     //historyID = '';

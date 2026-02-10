@@ -15,6 +15,7 @@
             "destination": "octo-backend",
             "authenticationType": "xsuaa",
             "csrfProtection": false
+            
         },
         {
             "source": "^/(.*)$",
