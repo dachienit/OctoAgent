@@ -24,7 +24,8 @@ modules:
       builder: custom
       commands:
         - npm ci --production --no-audit
-        - npx copyfiles -u 1 "../../src/**/*" .
+        - npx copyfiles -u 3 "../../src/**/*" .
+        - npx copyfiles -u 3 "../../docs/**/*" .
     provides:
       - name: srv-api
         properties:

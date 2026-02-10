@@ -4,11 +4,12 @@ const { fileURLToPath } = require('url');
 
 module.exports = async (srv) => {
     // Dynamic import for ESM module
-    const { ask } = await import('../src/ask.js');
+    const { ask } = await import('./src/ask.js');
+    //const { ask } = await import(path.join(process.cwd(), 'src/ask.js'));
 
     // Path to docs folder (roots/docs)
     // In CJS, __dirname is available directly
-    const docsPath = path.join(__dirname, '../docs');
+    const docsPath = path.join(__dirname, './docs');
 
     srv.on('chat', async (req) => {
         const { message, env, option, reLoad, historyID } = req.data;
