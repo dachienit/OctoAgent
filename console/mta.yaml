@@ -9,12 +9,12 @@ build-parameters:
     - builder: custom
       commands:
         - npm ci --only=production --no-audit --no-fund
-        - npx -p @sap/cds-dk cds build --for hana --production
+        - npx -p @sap/cds-dk cds build --production
 
 modules:
   - name: octo-agent-srv
     type: nodejs
-    path: srv
+    path: gen/srv
     parameters:
       command: npx cds-serve
       health-check-type: http
@@ -46,7 +46,7 @@ modules:
 
   - name: octo-agent-db-deployer
     type: hdb
-    path: db
+    path: gen/db
     parameters:
       buildpack: nodejs_buildpack
     requires:
@@ -116,6 +116,3 @@ resources:
     parameters:
       service: hana
       service-plan: hdi-shared
-
-    requires:
-      - name: srv-api
