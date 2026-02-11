@@ -13,6 +13,7 @@ import UserProfile from './components/UserProfile';
 import SapLogin from './components/SapMCP/SapLogin';
 import { useMcp } from './components/SapMCP/useMcp';
 import { saveToSap } from './components/SapMCP/SapSetObject';
+import LoadingBubble from './components/Chat/LoadingBubble';
 
 
 function App() {
@@ -478,6 +479,7 @@ ${codeBlock}
                     onViewAttachment={(att) => setViewingFile(att)}
                   />
                 ))}
+                {isProcessing && <LoadingBubble />}
               </div>
 
               <form className="chat-input" onSubmit={handleSend} autoComplete="off">
@@ -532,15 +534,7 @@ ${codeBlock}
 
         </div>
 
-        {/* Wait Overlay */}
-        {isProcessing && (
-          <div id="waitOverlay" className="wait-overlay">
-            <div className="wait-box">
-              <span className="spinner"></span>
-              <span>Please wait ...</span>
-            </div>
-          </div>
-        )}
+
       </main>
 
       {/* Right Sidebar */}
