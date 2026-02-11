@@ -51,6 +51,7 @@ function App() {
   // Refs for UI behavior
   const textareaRef = useRef(null);
   const lastMessageRef = useRef(null);
+  const abortControllerRef = useRef(null);
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -205,12 +206,15 @@ function App() {
         finalMessage = fullContentForLLM.replace('@review', '').trim();
       }
 
+      // Create AbortController
+      abortControllerRef.current = new AbortController();
+
       const data = await api.chat(
         finalMessage,
         settings,
         option,
         false,
-        { historyID }
+        { historyID, signal: abortControllerRef.current.signal }
       );
 
       if (data.hisID) setHistoryID(data.hisID);
@@ -223,14 +227,31 @@ function App() {
       }]);
 
     } catch (error) {
+      if (error.name === 'AbortError') {
+        console.log('Request aborted by user');
+      } else {
+        setMessages(prev => [...prev, {
+          role: 'bot',
+          text: `**Error:** ${error.message}`,
+          sender: 'Octo Agent',
+          time: formatTime()
+        }]);
+      }
+    } finally {
+      setIsProcessing(false);
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleStop = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
       setMessages(prev => [...prev, {
         role: 'bot',
-        text: `**Error:** ${error.message}`,
+        text: '*Request stopped by user*',
         sender: 'Octo Agent',
         time: formatTime()
       }]);
-    } finally {
-      setIsProcessing(false);
     }
   };
 
@@ -500,25 +521,39 @@ ${codeBlock}
                     placeholder="Send a message to brain 'Octo Agent'..."
                     value={inputObj.text}
                     onChange={handleInputChange}
+                    disabled={isProcessing}
+                    style={{ opacity: isProcessing ? 0.7 : 1, cursor: isProcessing ? 'not-allowed' : 'text' }}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' && !e.shiftKey) {
                         e.preventDefault();
-                        // trigger form submit
-                        handleSend(e);
+                        if (!isProcessing) handleSend(e);
                       }
                     }}
                   />
 
-                  <button type="button" className="btn-attach" title="Attach file" onClick={() => fileInputRef.current.click()}>
+                  <button
+                    type="button"
+                    className="btn-attach"
+                    title="Attach file"
+                    onClick={() => fileInputRef.current.click()}
+                    disabled={isProcessing}
+                    style={{ opacity: isProcessing ? 0.5 : 1, cursor: isProcessing ? 'not-allowed' : 'pointer' }}
+                  >
                     <span>+</span>
                   </button>
                 </div>
 
                 <CommandMenu show={showCommandMenu} onSelect={insertCommand} />
 
-                <button type="submit" className="btn-send">
-                  <span>↑</span>
-                </button>
+                {isProcessing ? (
+                  <button type="button" className="btn-send stop-btn" onClick={handleStop} title="Stop generation" style={{ backgroundColor: '#ef4444' }}>
+                    <span>■</span>
+                  </button>
+                ) : (
+                  <button type="submit" className="btn-send">
+                    <span>↑</span>
+                  </button>
+                )}
               </form>
 
               <div className="copyright-notice">

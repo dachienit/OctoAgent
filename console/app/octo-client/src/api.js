@@ -30,6 +30,7 @@ export const api = {
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers,
+                signal: metadata?.signal, // Pass signal if present
                 body: JSON.stringify({
                     message,
                     env,
