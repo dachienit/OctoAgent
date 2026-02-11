@@ -27,16 +27,18 @@ export const api = {
             const headers = { 'Content-Type': 'application/json' };
             if (token) headers['X-CSRF-Token'] = token;
 
+            const { signal, ...restMetadata } = metadata;
+
             const response = await fetch('/api/chat', {
                 method: 'POST',
                 headers,
-                signal: metadata?.signal, // Pass signal if present
+                signal: signal,
                 body: JSON.stringify({
                     message,
                     env,
                     option,
                     reLoad,
-                    ...metadata
+                    ...restMetadata
                 })
             });
 
